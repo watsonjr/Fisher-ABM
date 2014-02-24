@@ -29,8 +29,6 @@ const PC_ff   = 10; # radius of fish finder
 const PC_c    = 3; # distance at which fishers can catch fish
 const PC_ang  = 1; # correlated random walk angle
 const PC_pr   = 0.5; # probability of catching fish once encountered
-#const PC_Sn   = eye(PC_n); # fisher social network
-#const PC_Sn   = ones(PC_n,PC_n);
 
 ##### Cluster parameters
 const PCL_n   = 5;    # number of cluster centres

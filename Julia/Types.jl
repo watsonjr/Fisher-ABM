@@ -34,6 +34,9 @@ type Tau
     s::Array{Float64}
     mu::Array{Float64}
     dmu::Array{Float64}
+    S::Array{Float64}
+    M::Array{Float64}
+    s2::Array{Float64}
 end
 
 end

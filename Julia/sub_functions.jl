@@ -98,20 +98,26 @@ end
 
 
 #### HARVEST for a season
-function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,Tau_t,Tau_dmu,Tau_mu)
+function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,
+                       Tau_t,Tau_dmu,Tau_mu,Tau_M,Tau_S,Tau_s2)
     II = KK.*JJ
     if II != 0 # if the fish is caught
 
         # record that is it
         CC = 1; # catch
 
-        # update waiting time statistic
+        # update waiting time mean
         tau_n   = Tau_n + 1; # increment catch event counter
         tau_s   = Tau_s + Tau_t; # accumulate waiting times
         tau_t   = 1; # reset wait time counter
         mu      = tau_s / tau_n;
         tau_dmu = abs(Tau_mu - mu);
         tau_mu  = mu;
+
+        # update waiting time variance
+        tau_M  = Tau_M + ((Tau_t - Tau_M) / tau_n);
+        tau_S  = Tau_S + ((Tau_t-Tau_M) * (Tau_t-tau_M));
+        tau_s2 = tau_S / (tau_n-1);
 
         # and relocate fish (to far away cl centre picked at random)
         LL = CLi[II];
@@ -126,8 +132,11 @@ function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,Tau_t,Tau_dmu,Tau_mu)
         tau_mu = Tau_mu;
         tau_dmu= Tau_dmu;
         tau_t  = Tau_t + 1; # increment wait time counter
+        tau_S  = Tau_S;
+        tau_M  = Tau_M;
+        tau_s2 = Tau_s2;
     end
-    return CC,FF,tau_n,tau_s,tau_t,tau_dmu,tau_mu
+    return CC,FF,tau_n,tau_s,tau_t,tau_dmu,tau_mu,tau_M,tau_S,tau_s2
 end
 
 

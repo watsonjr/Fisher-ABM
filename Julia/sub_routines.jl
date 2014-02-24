@@ -25,10 +25,12 @@ while max(tau.dmu) > 0.01
 
         ## harvest
         (cons.H[i], fish.xy,
-        tau.n[i],tau.s[i],tau.t[i],tau.dmu[i],tau.mu[i]) =
-                fnc_harvest_e(vars.KK[i],vars.JJ[i],cons.H[i],
+        tau.n[i],tau.s[i],tau.t[i],tau.dmu[i],tau.mu[i],
+        tau.M[i],tau.S[i],tau.s2[i]) =
+        fnc_harvest_e(vars.KK[i],vars.JJ[i],cons.H[i],
                     fish.xy,fish.ci,fish.cl,
-                    tau.n[i],tau.s[i],tau.t[i],tau.dmu[i],tau.mu[i]);
+                    tau.n[i],tau.s[i],tau.t[i],tau.dmu[i],tau.mu[i],
+                    tau.M[i],tau.S[i],tau.s2[i]);
 
      end
 
@@ -41,6 +43,13 @@ while max(tau.dmu) > 0.01
 end
 return
 end
+
+
+
+
+
+
+
 
 ############## Run for a fixed length of time #############
 function make_season(fish_xy,cons_xy,cons_H,SN)
