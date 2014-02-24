@@ -1,54 +1,41 @@
 
-#### Preamble
-using NPZ, Distance
-include("sub_dynamics.jl");
+#### Add modules
+using NPZ, Distance, Types, Constants
+
+#### Add functions (i.e. things the model uses)
 include("sub_functions.jl");
-include("sub_params.jl");
+include("sub_init.jl");
 
-#### Initialize
-include("make_types.jl");
-P,Fish,Con,Var,Tau = initialize_e(); # equilibrium run
+#### Add routines (i.e. the model)
+include("sub_routines.jl");
 
-SN1 = eye(P.C_n);
-SN2 = ones(P.C_n,P.C_n);
+### Initialize
+#fish,cons,vars,tau = init_equilibrium();
+(Tau_n,Tau_t,Tau_s,Tau_mu,Tau_dmu,
+   Dmin,DDx,DDy,ANG,VR,RN,JJ,KK,
+   Fish_xy,Fish_ci,Fish_cl,
+   Cons_xy,Cons_H) = init_equilibrium();
+
+fish = Fish(copy(Fish_xy),copy(Fish_ci),copy(Fish_cl));
+cons = Fishers(copy(Cons_xy),copy(Cons_H));
+vars=Vars(copy(Dmin),copy(DDx),copy(DDy),copy(ANG),copy(VR),copy(RN),copy(JJ),copy(KK));
+tau = Tau(copy(Tau_n),copy(Tau_t),copy(Tau_s),copy(Tau_mu),copy(Tau_dmu));
+
+
+### make social network
+SN = eye(PC_n);
+SN = ones(PC_n,PC_n);
+
 
 #### Run model
-f = T_Fish(Fish.xy,Fish.ci,Fish.cl);
-c = T_Fishers(Con.xy,Con.H);
-t = T_Tau(Tau.n,Tau.t,Tau.s,Tau.mu,Tau.dmu);
-v = T_Vars(Var.Dmin,Var.DDx,Var.DDy,Var.ANG,Var.VR,Var.RN,Var.JJ,Var.KK);
-make_equilibrium(f,c,t,v,SN1);
-out1 = t.mu;
-
-f = Fish; c = Con; v = Var; t = Tau;
-make_equilibrium(f,c,t,v,SN2);
-out2 = t.mu;
-
-
-
-
-
-#### Run a season
-#include("make_params_s.jl");
-#P_C_Sn = eye(P_C_n);
-#Fish_xy,Cons_xy,Cons_H = make_season(Fish_xy,Cons_xy,Cons_H,P_C_Sn);
-
-#### Test different social networks at equilibrium
-make_params()
-initialize()
-SN = eye(P_C_n);
-make_equilibrium(Fish_xy,Fish_cl,Fclust_xy,Cons_xy,Cons_H,SN);
-
-include("make_params_e.jl");
-SN = ones(P_C_n,P_C_n);
-make_equilibrium(Fish_xy,Cons_xy,Cons_H,SN);
+make_equilibrium(fish,cons,tau,vars,SN);
 
 
 #### Save
-npzwrite("./Data/Data_fish.npy", Fish_xy)
-npzwrite("./Data/Data_fisher_xy.npy", Cons_xy)
-npzwrite("./Data/Data_fisher_H.npy", Cons_H)
-npzwrite("./Data/Data_fclust.npy", Fclust_xy)
+npzwrite("./Data/Data_fish.npy", fish.xy)
+npzwrite("./Data/Data_fclust.npy", fish.cl)
+npzwrite("./Data/Data_fisher_xy.npy", cons.xy)
+npzwrite("./Data/Data_fisher_H.npy", cons.H)
 
 #### Useful Julia code
 ###### Grid fish density
