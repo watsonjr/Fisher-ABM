@@ -1,6 +1,6 @@
 module Types
 
-export Fish, Fishers, Vars, Tau
+export Fish, Fishers, Vars, Tau, Output
 
 #### Define Fish type
 type Fish
@@ -33,11 +33,17 @@ type Tau
     t::Array{Int}
     s::Array{Float64}
     mu::Array{Float64}
-    dmu::Array{Float64}
     S::Array{Float64}
     M::Array{Float64}
     s2::Array{Float64}
+    dmu::Array{Float64}
+    ds2::Array{Float64}
+end
+
+#### Output variable for plotting
+type Output
+    fish_xy::Array{Float64}
+    cons_xy::Array{Float64}
 end
 
 end
-

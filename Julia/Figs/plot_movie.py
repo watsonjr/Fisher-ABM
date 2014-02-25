@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 
 ## Load in data
 Fish   = np.load("../Data/Data_fish.npy")
-Fclust = np.load("../Data/Data_fclust.npy")
 Cons = np.load("../Data/Data_fishers.npy")
 
 ## plot
@@ -12,15 +11,12 @@ for i in np.arange(0,Fish.shape[2]):
 
     x   = Fish[:,0,i];
     y   = Fish[:,1,i];
-    xcl = Fclust[:,0,i];
-    ycl = Fclust[:,1,i];
     xc  = Cons[:,0,i];
     yc  = Cons[:,1,i];
 
     fig = plt.figure(1, figsize=(10, 8),edgecolor=[.4,.4,.4]);
     plt.plot(x,y,'o',alpha=0.5,mec='none',color=[.3,.3,1.],ms=9);
     plt.plot(xc,yc,'o',alpha=1,mec='none',color=[1,0,0],ms=9);
-    plt.plot(xcl,ycl,'^',alpha=1,mec='none',color=[0,1,0],ms=9);
     plt.axis([0,100,0,100])
     plt.xticks([]);
     plt.yticks([]);

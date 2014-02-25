@@ -38,9 +38,13 @@ Tau_dmu = ones(Float64,PC_n)*999; # min diff in mean waiting times between t and
 Tau_M   = zeros(Float64,PC_n); # component of running variance
 Tau_S   = zeros(Float64,PC_n); # second comp of running variance
 Tau_s2  = zeros(Float64,PC_n); # running variance
-tau     = Tau(Tau_n,Tau_t,Tau_s,Tau_mu,Tau_dmu,Tau_M,Tau_S,Tau_s2);
+Tau_ds2 = ones(Float64,PC_n)*999; # running variance
+tau     = Tau(Tau_n,Tau_t,Tau_s,Tau_mu,Tau_M,Tau_S,Tau_s2,Tau_dmu,Tau_ds2);
 
-return fish,cons,vars,tau
+##### Initialize output storage
+OUT = Output(Fish_xy,Cons_xy);
+
+return fish,cons,vars,tau,OUT
 #return Tau_n,Tau_t,Tau_s,Tau_mu,Tau_dmu,
 #       Dmin,DDx,DDy,ANG,VR,RN,JJ,KK,
 #       Fish_xy,Fish_ci,Fish_cl,

@@ -52,7 +52,7 @@ function fnc_information(D,Dx,Dy,SN,id)
 
     # find nearest fish
     if isempty(DD)==0 # if I see something
-        Dmin = min(DD);
+        Dmin = minimum(DD);
         II = find(D .== Dmin);
         K,JJ = ind2sub(size(D),II); # index of nearest fish (JJ)
         JJ = JJ[1];
@@ -99,7 +99,7 @@ end
 
 #### HARVEST for a season
 function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,
-                       Tau_t,Tau_dmu,Tau_mu,Tau_M,Tau_S,Tau_s2)
+                       Tau_t,Tau_dmu,Tau_mu,Tau_M,Tau_S,Tau_s2,Tau_ds2)
     II = KK.*JJ
     if II != 0 # if the fish is caught
 
@@ -118,6 +118,7 @@ function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,
         tau_M  = Tau_M + ((Tau_t - Tau_M) / tau_n);
         tau_S  = Tau_S + ((Tau_t-Tau_M) * (Tau_t-tau_M));
         tau_s2 = tau_S / (tau_n-1);
+        tau_ds2=abs(Tau_s2 - tau_s2);
 
         # and relocate fish (to far away cl centre picked at random)
         LL = CLi[II];
@@ -135,8 +136,9 @@ function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,
         tau_S  = Tau_S;
         tau_M  = Tau_M;
         tau_s2 = Tau_s2;
+        tau_ds2= Tau_ds2;
     end
-    return CC,FF,tau_n,tau_s,tau_t,tau_dmu,tau_mu,tau_M,tau_S,tau_s2
+    return CC,FF,tau_n,tau_s,tau_t,tau_mu,tau_M,tau_S,tau_s2,tau_dmu,tau_ds2
 end
 
 
