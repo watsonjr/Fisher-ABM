@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ## Load in data
-Harv = np.load("../Data/Data_fisher_H.npy")
+Harv = np.load("../Data/Data_harvest.npy")
 
 ## Data to plot
 y = Harv[1,:];
@@ -12,7 +12,6 @@ d = d[d>0];
 bins = np.arange(0,y.size+1,20); ##<< bin width
 hist_1, edges = np.histogram(d,bins);
 cen_1 = bins[1:] - (np.diff(bins)/2);
-
 
 
 ## Calculate times between catches

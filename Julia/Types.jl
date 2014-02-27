@@ -5,7 +5,7 @@ export Fish, Fishers, Vars, Tau, Output
 #### Define Fish type
 type Fish
     xy::Array{Float64} # fish location in xy
-    ci::Array{Float64} # index of nearest cluster centre to each fish
+    #ci::Array{Float64} # index of nearest cluster centre to each fish
     cl::Array{Float64} # cluster xy
 end
 
@@ -44,6 +44,8 @@ end
 type Output
     fish_xy::Array{Float64}
     cons_xy::Array{Float64}
+    clus_xy::Array{Float64}
+    cons_H::Array{Float64}
 end
 
 end

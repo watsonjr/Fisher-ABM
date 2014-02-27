@@ -3,7 +3,8 @@
 
 ############## Run until encounter rates are stationary #############
 function make_equilibrium(fish,cons,tau,vars,SN,ST)
-while maximum(tau.dmu) > 0.01 || maximum(tau.ds2) > 1.0
+while mean(tau.dmu) > 0.1 || mean(tau.ds2) > 1.0
+#for t = 1:2000
     ## Distances
     D,Dx,Dy = fnc_distance(fish.xy,cons.xy);
 
@@ -24,13 +25,12 @@ while maximum(tau.dmu) > 0.01 || maximum(tau.ds2) > 1.0
             fnc_direction(vars.Dmin[i],vars.DDx[i],vars.DDy[i],vars.ANG[i]);
 
         ## harvest and update catch statistics (tau)
-        (cons.H[i], fish.xy,
-        tau.n[i],tau.s[i],tau.t[i],tau.mu[i],
-        tau.M[i],tau.S[i],tau.s2[i],tau.dmu[i],tau.ds2[i]) =
-        fnc_harvest_e(vars.KK[i],vars.JJ[i],cons.H[i],
-                    fish.xy,fish.ci,fish.cl,
-                    tau.n[i],tau.s[i],tau.t[i],tau.dmu[i],tau.mu[i],
-                    tau.M[i],tau.S[i],tau.s2[i],tau.ds2[i]);
+        (cons.H[i],tau.n[i],tau.t[i],tau.s[i],tau.mu[i],
+        tau.S[i],tau.M[i],tau.s2[i],tau.dmu[i],tau.ds2[i],
+        fish.xy) =  fnc_harvest(vars.KK[i],vars.JJ[i],cons.H[i],
+                    tau.n[i],tau.t[i],tau.s[i],tau.mu[i],
+                    tau.S[i],tau.M[i],tau.s2[i],
+                    tau.dmu[i],tau.ds2[i],fish.xy);
 
      end
 
@@ -41,10 +41,15 @@ while maximum(tau.dmu) > 0.01 || maximum(tau.ds2) > 1.0
     ## Relocate fish (simulates movement)
     fish.xy = fnc_relocate(fish.cl,fish.xy);
 
+    ## Fish growth
+    fish.xy = fnc_growth(fish.xy,fish.cl);
+
     ## Storage for plotting
     if ST == 1
         OUT.fish_xy = cat(3,OUT.fish_xy,fish.xy);
         OUT.cons_xy = cat(3,OUT.cons_xy,cons.xy);
+        OUT.clus_xy = cat(3,OUT.clus_xy,fish.cl);
+        OUT.cons_H = cat(3,OUT.cons_H,cons.H);
     end
 end
 return

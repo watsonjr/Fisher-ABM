@@ -4,13 +4,14 @@ function init_equilibrium()
 #### Initialize fish
 Fish_cl = rand(Float64,PCL_n,2).*repmat([GRD_mx GRD_my],PCL_n,1);
 Fish_xy = zeros(Float64,PF_n,2); # location of fish
-Fish_ci = zeros(Float64,PF_n); # index of cluster centre fishers are nearest
+#Fish_ci = zeros(Float64,PF_n); # index of cluster centre fishers are nearest
 for i = 1:PF_n # place each fish
     j = ceil(rand(1)*PCL_n); # index of which cluster center
-    Fish_ci[i] = j[1];
+    #Fish_ci[i] = j[1];
     Fish_xy[i,:,1] = mod(Fish_cl[j,:,1] + randn(1,2).*PF_dx, [GRD_mx GRD_my]);
 end
-fish = Fish(Fish_xy,Fish_ci,Fish_cl);
+#fish = Fish(Fish_xy,Fish_ci,Fish_cl);
+fish = Fish(Fish_xy,Fish_cl);
 
 ##### Initialize fishers
 Cons_H     = zeros(Int,PC_n); # catch at time t
@@ -39,10 +40,10 @@ Tau_M   = zeros(Float64,PC_n); # component of running variance
 Tau_S   = zeros(Float64,PC_n); # second comp of running variance
 Tau_s2  = zeros(Float64,PC_n); # running variance
 Tau_ds2 = ones(Float64,PC_n)*999; # running variance
-tau     = Tau(Tau_n,Tau_t,Tau_s,Tau_mu,Tau_M,Tau_S,Tau_s2,Tau_dmu,Tau_ds2);
+tau     = Tau(Tau_n,Tau_t,Tau_s,Tau_mu,Tau_S,Tau_M,Tau_s2,Tau_dmu,Tau_ds2);
 
 ##### Initialize output storage
-OUT = Output(Fish_xy,Cons_xy);
+OUT = Output(Fish_xy,Cons_xy,Fish_cl,Cons_H);
 
 return fish,cons,vars,tau,OUT
 #return Tau_n,Tau_t,Tau_s,Tau_mu,Tau_dmu,

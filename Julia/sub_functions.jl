@@ -79,7 +79,7 @@ function fnc_direction(Dmin,DDx,DDy,ANG_in)
     elseif Dmin <= PC_c # if very near - go fishing
         DXY = [DDx DDy] ./ Dmin;
         ANG_out  = DXY[:,2] ./ DXY[:,1];
-        vr = 0; # no speed, stay where you are
+        vr = 0.001; # no speed, stay where you are
 
         # probabilistic catch
         r =rand();
@@ -90,7 +90,7 @@ function fnc_direction(Dmin,DDx,DDy,ANG_in)
         end
     else # if not so near, random walk
         ANG_out = ANG_in + (PC_ang * rand() - (PC_ang/2));
-        vr   = 1.*PC_v;
+        vr   = PC_v;
         KK   = 0;
     end
     return ANG_out[1],vr,KK
@@ -98,8 +98,8 @@ end
 
 
 #### HARVEST for a season
-function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,
-                       Tau_t,Tau_dmu,Tau_mu,Tau_M,Tau_S,Tau_s2,Tau_ds2)
+function fnc_harvest(KK,JJ,CC,Tau_n,Tau_t,
+                       Tau_s,Tau_mu,Tau_S,Tau_M,Tau_s2,Tau_dmu,Tau_ds2,FF)
     II = KK.*JJ
     if II != 0 # if the fish is caught
 
@@ -109,74 +109,77 @@ function fnc_harvest_e(KK,JJ,CC,FF,CLi,CLx,Tau_n,Tau_s,
         # update waiting time mean
         tau_n   = Tau_n + 1; # increment catch event counter
         tau_s   = Tau_s + Tau_t; # accumulate waiting times
-        tau_t   = 1; # reset wait time counter
-        mu      = tau_s / tau_n;
-        tau_dmu = abs(Tau_mu - mu);
-        tau_mu  = mu;
+        tau_mu  = tau_s / tau_n;
+        tau_dmu = abs(Tau_mu - tau_mu);
+        tau_t   = 0; # reset wait time counter
 
         # update waiting time variance
-        tau_M  = Tau_M + ((Tau_t - Tau_M) / tau_n);
-        tau_S  = Tau_S + ((Tau_t-Tau_M) * (Tau_t-tau_M));
-        tau_s2 = tau_S / (tau_n-1);
-        tau_ds2=abs(Tau_s2 - tau_s2);
+        tau_M   = Tau_M + ((Tau_t - Tau_M) / tau_n);
+        tau_S   = Tau_S + ((Tau_t-Tau_M) * (Tau_t-tau_M));
+        tau_s2  = tau_S / (tau_n-1);
+        tau_ds2 = abs(Tau_s2 - tau_s2);
 
-        # and relocate fish (to far away cl centre picked at random)
-        LL = CLi[II];
-        id = PCL_id[PCL_id.!=LL];
-        id = shuffle(id);
-        FF[II,:] = mod(CLx[id[1],:] + (randn().*PF_dx),[GRD_mx GRD_my]);
+        # kill fish
+        FF[II,:] = NaN;
+
     else
+
         CC = 0; # no catch
+        tau_t  = Tau_t + 1; # increment wait time counter
+
+        # update waiting time mean
         tau_n  = Tau_n;
         tau_s  = Tau_s;
-        tau_t  = Tau_t;
         tau_mu = Tau_mu;
-        tau_dmu= Tau_dmu;
-        tau_t  = Tau_t + 1; # increment wait time counter
+
+        # update waiting time variance
         tau_S  = Tau_S;
         tau_M  = Tau_M;
         tau_s2 = Tau_s2;
+        tau_dmu= Tau_dmu;
         tau_ds2= Tau_ds2;
     end
-    return CC,FF,tau_n,tau_s,tau_t,tau_mu,tau_M,tau_S,tau_s2,tau_dmu,tau_ds2
+    return CC,tau_n,tau_t,tau_s,tau_mu,tau_S,tau_M,tau_s2,tau_dmu,tau_ds2,FF
 end
 
-
-#### HARVEST for season
-function fnc_harvest_s(KK,JJ,CC,FF,CLi,CLx)
-    II = KK.*JJ
-    if II != 0 # if the fish is caught
-
-        # record that is it
-        CC = 1; # catch
-
-        # and relocate fish (to far away cl centre picked at random)
-        LL = CLi[II];
-        id = PCL_id[PCL_id.!=LL];
-        id = shuffle(id);
-        FF[II,:] = mod(CLx[id[1],:] + (randn().*PF_dx),[GRD_mx GRD_my]);
-    else
-        CC = 0;
-    end
-    return CC, FF
-end
 
 #### MOVE
 function fnc_move(CL,CC,theta_c,VR)
 
-    # clusters centers move
-    ## Make this probabilistic (i.e. doesn't move all the time)
-    theta_f = rand(PCL_n)*2*pi; # angle
-    f = rand(PCL_n,1).^(-1/PCL_al); # magnitude
-    CL_x = mod(CL[:,1] + (f.*cos(theta_f)), GRD_mx);
-    CL_y = mod(CL[:,2] + (f.*sin(theta_f)), GRD_my);
+    # clusters centers move randomly
+    rn = rand(PCL_n);
+    i = find(rn .<= PCL_p);
+    CL_x = CL[:,1]; CL_y = CL[:,2];
+    CL_x[i] = rand() * GRD_mx;
+    CL_y[i] = rand() * GRD_my;
+
+    # clusters move with Levy flight
+    #theta_f = rand(PCL_n)*2*pi; # angle
+    #f = rand(PCL_n,1).^(-1/PCL_al); # magnitude
+    #CL_x = mod(CL[:,1] + (f.*cos(theta_f)), GRD_mx);
+    #CL_y = mod(CL[:,2] + (f.*sin(theta_f)), GRD_my);
 
     # fishers move
-    j = find(VR .< 0.5)
-    VR[j] = 0.25 + (randn(length(j)) * 0.1); # minimum speed
     CC_x = mod(CC[:,1] + (VR.*cos(theta_c)), GRD_mx);
     CC_y = mod(CC[:,2] + (VR.*sin(theta_c)), GRD_my);
 
     return CL_x,CL_y,CC_x,CC_y
 end
 
+
+#### Fish Growth
+function fnc_growth(FF,CL);
+    i = find(isnan(FF[:,1])); # find nans (i.e. dead fish)
+
+    if isempty(i)==false
+        rn = rand()
+        j = shuffle(i);
+        if rn <= PF_g
+            k = ceil(rand() * PCL_n); # cluster center to move to
+            F = mod(CL[k,:] + randn().*PF_dx, [GRD_mx GRD_my]); # move them
+            FF[j[1],:] = F;
+        end
+    end
+
+return FF
+end

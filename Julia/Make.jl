@@ -14,17 +14,23 @@ fish,cons,vars,tau,OUT = init_equilibrium();
 
 ### make social network
 SN = eye(PC_n);
+#SN = ones(PC_n,PC_n);
 
 #### Run model
 make_equilibrium(fish,cons,tau,vars,SN,1);
+
+#### Save for plotting
 npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
 npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
+npzwrite("./Data/Data_clusters.npy", OUT.clus_xy)
+npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 
 
 ### Optimization problem
 function sim_optimize()
 ad = linspace(0,1,10);
-TAU = zeros(length(ad));
+TAU_MU = zeros(length(ad));
+TAU_S2 = zeros(length(ad));
 for i = 1:length(ad)
 
     ## modulate social network
@@ -38,7 +44,8 @@ for i = 1:length(ad)
     make_equilibrium(fish,cons,tau,vars,SN,0);
 
     ## calculate average encounter rate
-    TAU[i] = mean(tau.mu);
+    TAU_MU[i] = mean(tau.mu);
+    TAU_S2[i] = mean(tau.s2);
 
 end
 return TAU
