@@ -5,26 +5,22 @@ export Fish, Fishers, Vars, Tau, Output
 #### Define Fish type
 type Fish
     xy::Array{Float64} # fish location in xy
-    #ci::Array{Float64} # index of nearest cluster centre to each fish
     cl::Array{Float64} # cluster xy
 end
 
 #### Define Fisher type
 type Fishers
     xy::Array{Float64}
-    H::Array{Int}
-end
-
-#### Define Variable type
-type Vars
-    Dmin::Array{Float64}
-    DDx::Array{Float64}
-    DDy::Array{Float64}
-    ANG::Array{Float64}
-    VR::Array{Float64}
-    RN::Array{Float64}
-    JJ::Array{Int}
-    KK::Array{Int}
+    H::Array{Float64} # harvest count
+    S::Array{Int} # make(1)/break(0) friendships
+    CN::Array{Int} # contact network
+    Dmin::Array{Float64} # distance to nearest fish
+    DDx::Array{Float64} # x component
+    DDy::Array{Float64} # y component
+    ANG::Array{Float64} # angle
+    VR::Array{Float64} # speed
+    JJ::Array{Int} # index of nearest fish
+    KK::Array{Int} # 1/0 harvest index
 end
 
 #### Define Variable type

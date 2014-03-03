@@ -17,9 +17,8 @@ fish = Fish(Fish_xy,Fish_cl);
 Cons_H     = zeros(Int,PC_n); # catch at time t
 Cons_xy    = zeros(Float64,PC_n,2); # Fisher locations through time
 Cons_xy[:,:,1]=rand(Float64,PC_n,2).*repmat([GRD_mx GRD_my],PC_n,1);
-cons = Fishers(Cons_xy,Cons_H);
-
-#### Define Variables
+Cons_s     = ones(PC_n);
+Cons_cn    = zeros(PC_n,PC_n);
 Dmin  = zeros(Float64,PC_n); # distance to nearest fish
 DDx   = zeros(Float64,PC_n); # x vector compontent to nearest fish
 DDy   = zeros(Float64,PC_n); # y vector compontent to nearest fish
@@ -28,7 +27,8 @@ VR    = zeros(Float64,PC_n);  # speed modulator (proportional to distance to fis
 RN    = zeros(Float64,1,PC_n); # random communication (in fnc_information)
 JJ    = zeros(Int,PC_n); # index of nearest fish (0 if nothing near)
 KK    = zeros(Int,PC_n); # index of catch [0,1]
-vars  = Vars(Dmin,DDx,DDy,ANG,VR,RN,JJ,KK);
+Catch = zeros(Float64,PC_n);
+cons = Fishers(Cons_xy,Cons_H,Cons_s,Cons_cn,Dmin,DDx,DDy,ANG,VR,JJ,KK);
 
 ##### Initialize waiting times (REF 2)
 Tau_n   = zeros(Int,PC_n); # number of events (hauls) so far
@@ -45,7 +45,7 @@ tau     = Tau(Tau_n,Tau_t,Tau_s,Tau_mu,Tau_S,Tau_M,Tau_s2,Tau_dmu,Tau_ds2);
 ##### Initialize output storage
 OUT = Output(Fish_xy,Cons_xy,Fish_cl,Cons_H);
 
-return fish,cons,vars,tau,OUT
+return fish,cons,tau,OUT
 #return Tau_n,Tau_t,Tau_s,Tau_mu,Tau_dmu,
 #       Dmin,DDx,DDy,ANG,VR,RN,JJ,KK,
 #       Fish_xy,Fish_ci,Fish_cl,

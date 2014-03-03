@@ -1,23 +1,21 @@
 
 #### Add modules
 using NPZ, Distance, Types, Constants
-
-#### Add functions (i.e. things the model uses)
 include("sub_functions.jl");
 include("sub_init.jl");
-
-#### Add routines (i.e. the model)
 include("sub_routines.jl");
 
 ### Initialize
-fish,cons,vars,tau,OUT = init_equilibrium();
+fish,cons,tau,OUT = init_equilibrium();
 
 ### make social network
-SN = eye(PC_n);
-#SN = ones(PC_n,PC_n);
+#SN = eye(PC_n);
+SN = ones(PC_n,PC_n);
+#SN = ones(PC_n,PC_n) .* 0.5;
+#for j = 1:PC_n; SN[j,j] = 1.; end;
 
 #### Run model
-make_equilibrium(fish,cons,tau,vars,SN,1);
+make_equilibrium(fish,cons,tau,SN,1);
 
 #### Save for plotting
 npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
@@ -25,36 +23,12 @@ npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
 npzwrite("./Data/Data_clusters.npy", OUT.clus_xy)
 npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 
-
+#### Run simulation experiments
 ### Optimization problem
-function sim_optimize()
-ad = linspace(0,1,10);
-TAU_MU = zeros(length(ad));
-TAU_S2 = zeros(length(ad));
-for i = 1:length(ad)
+include("main_routines.jl");
+@time TAU_MU, TAU_S2 = sim_optimize();
 
-    ## modulate social network
-    SN = ones(PC_n,PC_n) .* ad[i];
-    for j = 1:PC_n; SN[j,j] = 1.; end;
-
-    ## Initialize
-    fish,cons,vars,tau = init_equilibrium();
-
-    ## run model
-    make_equilibrium(fish,cons,tau,vars,SN,0);
-
-    ## calculate average encounter rate
-    TAU_MU[i] = mean(tau.mu);
-    TAU_S2[i] = mean(tau.s2);
-
-end
-return TAU
-end
-
-### Run experiments
-@time TAU = sim_optimize();
-
-
+### Evolutionary problem
 
 
 #### Useful Julia code
