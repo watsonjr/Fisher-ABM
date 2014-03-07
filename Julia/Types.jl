@@ -12,7 +12,7 @@ end
 type Fishers
     xy::Array{Float64}
     H::Array{Float64} # harvest count
-    S::Array{Int} # make(1)/break(0) friendships
+    S::Array{Int} # make(1)/break(-1) friendships
     CN::Array{Int} # contact network
     Dmin::Array{Float64} # distance to nearest fish
     DDx::Array{Float64} # x component
@@ -21,6 +21,13 @@ type Fishers
     VR::Array{Float64} # speed
     JJ::Array{Int} # index of nearest fish
     KK::Array{Int} # 1/0 harvest index
+    cs::Array{Float64} # cumulative harvest
+    mu::Array{Float64} # running average harvest
+    s2::Array{Float64} # running variance in harvest
+    s::Array{Float64} # component of running variance
+    m::Array{Float64} # component of running variance
+    dmu::Array{Float64} # difference in running mean
+    ds2::Array{Float64} # difference in running variance
 end
 
 #### Define Variable type

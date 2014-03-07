@@ -135,48 +135,29 @@ function fnc_harvest(KK,JJ,CC,FF);
     return CC,FF
 end
 
-#function fnc_harvest(KK,JJ,CC,Tau_n,Tau_t,
-#                       Tau_s,Tau_mu,Tau_S,Tau_M,Tau_s2,Tau_dmu,Tau_ds2,FF)
-#    if II != 0 # if the fish is caught
-#
-#        # record that is it
-#        CC = 1; # catch
-#
-#        # update waiting time mean
-#        tau_n   = Tau_n + 1; # increment catch event counter
-#        tau_s   = Tau_s + Tau_t; # accumulate waiting times
-#        tau_mu  = tau_s / tau_n;
-#        tau_dmu = abs(Tau_mu - tau_mu);
-#        tau_t   = 1; # reset wait time counter
-#
-#        # update waiting time variance
-#        tau_M   = Tau_M + ((Tau_t - Tau_M) / tau_n);
-#        tau_S   = Tau_S + ((Tau_t-Tau_M) * (Tau_t-tau_M));
-#        tau_s2  = tau_S / (tau_n-1);
-#        tau_ds2 = abs(Tau_s2 - tau_s2);
-#
-#        # kill fish
-#        FF[II,:] = NaN;
-#
-#    else
-#
-#        CC = 0; # no catch
-#        tau_t  = Tau_t + 1; # increment wait time counter
-#
-#        # update waiting time mean
-#        tau_n  = Tau_n;
-#        tau_s  = Tau_s;
-#        tau_mu = Tau_mu;
-#
-#        # update waiting time variance
-#        tau_S  = Tau_S;
-#        tau_M  = Tau_M;
-#        tau_s2 = Tau_s2;
-#        tau_dmu= Tau_dmu;
-#        tau_ds2= Tau_ds2;
-#    end
-#    return CC,tau_n,tau_t,tau_s,tau_mu,tau_S,tau_M,tau_s2,tau_dmu,tau_ds2,FF
-#end
+#### STATISTICS
+function fnc_stats(H,CS,s,m,mu,s2,TT);
+# H = harvest this time step
+# CS = cumulative harvest
+# s = component of variance caluclation
+# m = component of variance calculation
+# mu = current mean
+# s2 = current variance
+# TT = current time step
+# H = cons.H;CS = cons.cs;s = cons.s;m = cons.m;mu = cons.mu; s2 = cons.s2;
+    cs = CS + H; # cumulative catch
+    mu_2 = cs / TT; # running mean
+
+    M    = m + ((H-m)/TT);
+    S    = s + ((H-m).*(H-M));
+    s2_2 = S/(TT - 1); # running variance
+
+    dmu = abs(mu-mu_2);
+    ds2 = abs(s2-s2_2);
+
+    return mu_2,s2_2,cs,M,S,dmu,ds2
+end
+
 
 
 #### MOVE
@@ -212,3 +193,55 @@ function fnc_growth(FF,CL);
     end
 return FF
 end
+
+#### Update social preference (make/break friendships);
+function fnc_makebreak(DF,S)
+    for i = 1:PC_n
+        if DF[i] .> 0;
+            # stick
+            S[i] = S[i] .* 1;
+        elseif DF[i] .< 0
+            # twist
+            S[i] = S[i] .* -1;
+        end
+    end
+    return S
+end
+
+#### Update social network
+function fnc_update_SN(SN,S);
+    for i = 1:PC_n
+
+        # select a fisher to update make/break
+        sn = SN[i,:];
+
+        if S[i] .> 0
+            sn[i] = 0; # you don't change your relationship with yourself
+            sn  = sn ./ sum(sn);
+            csn = cumsum(sn);
+            rn  = rand();
+            Del = csn-rn;
+        elseif S[i] .< 0
+            sn  = 1 ./ sn;
+            sn[isinf(sn).==1] = 0;
+            sn[i] = 0;
+            sn  = sn ./ sum(sn);
+            csn = cumsum(sn);
+            rn  = rand();
+            Del = csn-rn;
+        end
+
+        # pick a fisher
+        j = find(Del.>0)[1]; # pick one
+
+        # change social network
+        SN[i,j] = SN[i,j] + (S[i] * (0.05*rand()));
+    end
+
+    # make sure they're a probability
+    SN[SN.<0] = 0;
+    SN[SN.>1] = 1;
+
+    return SN
+end
+

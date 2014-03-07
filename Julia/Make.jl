@@ -1,27 +1,28 @@
 
 #### Add modules
-using NPZ, Distance, Types, Constants
+using NPZ, Distance, Types, Constants, Distributions
 include("sub_functions.jl");
 include("sub_init.jl");
 include("sub_routines.jl");
 
 ### Initialize
-fish,cons,tau,OUT = init_equilibrium();
+fish,cons,OUT = init_equilibrium();
 
 ### make social network
 #SN = eye(PC_n);
-SN = ones(PC_n,PC_n);
-#SN = ones(PC_n,PC_n) .* 0.5;
-#for j = 1:PC_n; SN[j,j] = 1.; end;
+#SN = ones(PC_n,PC_n);
+SN = ones(PC_n,PC_n) .* 0.5;
+for j = 1:PC_n; SN[j,j] = 1.; end;
 
 #### Run model
-make_equilibrium(fish,cons,tau,SN,1);
+make_equilibrium(fish,cons,SN,1);
 
 #### Save for plotting
 npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
 npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
 npzwrite("./Data/Data_clusters.npy", OUT.clus_xy)
 npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+npzwrite("./Data/Data_SN.npy", OUT_SN)
 
 #### Run simulation experiments
 ### Optimization problem

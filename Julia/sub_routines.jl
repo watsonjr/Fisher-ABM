@@ -2,9 +2,11 @@
 
 
 ############## Run until encounter rates are stationary #############
-function make_equilibrium(fish,cons,tau,SN,ST)
-#while mean(tau.dmu) > 0.01 || sqrt(mean(tau.ds2)) > 1.
-for t = 1:2000
+function make_equilibrium(fish,cons,SN,ST)
+TT = 1;
+while sqrt(maximum(cons.ds2)) .> 0.005
+#for t = 1:2000
+
     ## Distances
     D,Dx,Dy = fnc_distance(fish.xy,cons.xy);
 
@@ -41,6 +43,12 @@ for t = 1:2000
 
     ## Fish growth
     fish.xy = fnc_growth(fish.xy,fish.cl);
+
+    ## Statistics
+    TT += 1; # ticker
+    (cons.mu,cons.s2,cons.cs,cons.m,cons.s,cons.dmu,cons.ds2) =
+        fnc_stats(cons.H,cons.cs,cons.s,cons.m,cons.mu,cons.s2,TT);
+
 
     ## Storage for plotting
     if ST == 1
