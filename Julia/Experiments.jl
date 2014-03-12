@@ -1,9 +1,9 @@
 
 ##### RUN THE OPTIMIZATION MODEL
 function sim_optimize()
-ad = linspace(0,1,10);
-TAU_MU = zeros(length(ad));
-TAU_S2 = zeros(length(ad));
+ad = linspace(1e-6,1,20);
+TAU_MU = zeros(PC_n,length(ad));
+TAU_S2 = zeros(PC_n,length(ad));
 for i = 1:length(ad)
 
     ## modulate social network
@@ -16,28 +16,37 @@ for i = 1:length(ad)
     ## run model
     make_equilibrium(fish,cons,SN,0);
 
-    ## calculate average encounter rate
-    TAU_MU[i] = mean(cons.mu);
-    TAU_S2[i] = mean(cons.s2);
+    ## calculate CPUE stats
+    TAU_MU[:,i] = cons.mu;
+    TAU_S2[:,i] = cons.s2;
 
+    ## ticker
+    println(i/length(ad));
 end
-return TAU_MU, TAU_S2
+return TAU_MU, TAU_S2, ad
 end
 
 
 ##### RUN THE EVOLUTIONARY MODEL
 function sim_evolve()
+# setup
+P_tend = 600;
 MU_1 = zeros(PC_n);
 MU_2 = zeros(PC_n);
-P_tend = 1000;
-OUT_SN = zeros(size(SN,1),size(SN,2),P_tend);
-for t = 1:P_tend # need to replace this with a while loop
+SN   = ones(PC_n,PC_n) .* 0.25;
+for j = 1:PC_n; SN[j,j] = 1.; end;
+OUT_SN      = zeros(PC_n,PC_n,P_tend);
+OUT_CPUE_mu = zeros(PC_n,P_tend);
+OUT_CPUE_s2 = zeros(PC_n,P_tend);
 
-    ## Record current fitness
-    MU_1 = cons.mu;
+# run
+for t = 1:P_tend # need to replace this with a while loop
 
     ## Initialize
     fish,cons = init_equilibrium();
+
+    ## Record current fitness
+    MU_1 = cons.mu;
 
     ## run model
     make_equilibrium(fish,cons,SN,0);
@@ -56,11 +65,13 @@ for t = 1:P_tend # need to replace this with a while loop
 
     ## Save
     OUT_SN[:,:,t] = SN;
+    OUT_CPUE_mu[:,t] = cons.mu;
+    OUT_CPUE_s2[:,t] = cons.s2;
     t = t+1;
     println(t);
 
 end
-return OUT_SN
+return OUT_SN, OUT_CPUE_mu, OUT_CPUE_s2
 end
 
 

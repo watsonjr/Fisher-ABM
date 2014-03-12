@@ -215,32 +215,36 @@ function fnc_update_SN(SN,S);
         # select a fisher to update make/break
         sn = SN[i,:];
 
-        if S[i] .> 0
+        if S[i] == 1
             sn[i] = 0; # you don't change your relationship with yourself
+            sn[sn.==1] = 0; # cant improve bbfs
             sn  = sn ./ sum(sn);
-            csn = cumsum(sn);
+            csn = cumsum(sn,2);
             rn  = rand();
             Del = csn-rn;
-        elseif S[i] .< 0
-            sn  = 1 ./ sn;
-            sn[isinf(sn).==1] = 0;
-            sn[i] = 0;
+        else
+            sn[i] = 0; # don't hate yourself
+            sn  = 1 ./ sn; # inverse
+            sn[isinf(sn).==1] = 0; # don't hate your worst enemies more
             sn  = sn ./ sum(sn);
-            csn = cumsum(sn);
+            csn = cumsum(sn,2);
             rn  = rand();
             Del = csn-rn;
         end
 
         # pick a fisher
-        j = find(Del.>0)[1]; # pick one
+        j = find(Del.>0); # pick one
 
         # change social network
-        SN[i,j] = SN[i,j] + (S[i] * (0.05*rand()));
+        if isempty(j) == 0
+            j = j[1];
+            SN[i,j] = SN[i,j] + (S[i] * (0.05*rand()));
+        end
     end
 
     # make sure they're a probability
-    SN[SN.<0] = 0;
-    SN[SN.>1] = 1;
+    SN[SN.<=0] = 1e-6;
+    SN[SN.>1]  = 1.0;
 
     return SN
 end

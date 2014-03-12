@@ -17,45 +17,29 @@ fish = Fish(Fish_xy,Fish_cl);
 Cons_H     = ones(Int,PC_n); # catch at time t
 Cons_xy    = zeros(Float64,PC_n,2); # Fisher locations through time
 Cons_xy[:,:,1]=rand(Float64,PC_n,2).*repmat([GRD_mx GRD_my],PC_n,1);
-Cons_s     = ones(PC_n);
+Cons_s     = randn(PC_n); Cons_s[Cons_s.<0]=-1; Cons_s[Cons_s.>0]=1;
 Cons_cn    = zeros(PC_n,PC_n);
-Dmin  = zeros(Float64,PC_n); # distance to nearest fish
-DDx   = zeros(Float64,PC_n); # x vector compontent to nearest fish
-DDy   = zeros(Float64,PC_n); # y vector compontent to nearest fish
-ANG   = zeros(Float64,PC_n); # fisher direction angle
-VR    = zeros(Float64,PC_n);  # speed modulator (proportional to distance to fish)
-RN    = zeros(Float64,1,PC_n); # random communication (in fnc_information)
-JJ    = zeros(Int,PC_n); # index of nearest fish (0 if nothing near)
-KK    = zeros(Int,PC_n); # index of catch [0,1]
-cs    = ones(Float64,PC_n);
-mu    = zeros(Float64,PC_n);
-s2    = zeros(Float64,PC_n);
-S     = zeros(Float64,PC_n);
-M     = ones(Float64,PC_n);
-dmu   = zeros(Float64,PC_n);
-ds2   = ones(Float64,PC_n);
+Dmin       = zeros(Float64,PC_n); # distance to nearest fish
+DDx        = zeros(Float64,PC_n); # x vector compontent to nearest fish
+DDy        = zeros(Float64,PC_n); # y vector compontent to nearest fish
+ANG        = zeros(Float64,PC_n); # fisher direction angle
+VR         = zeros(Float64,PC_n);  # speed modulator (proportional to distance to fish)
+RN         = zeros(Float64,1,PC_n); # random communication (in fnc_information)
+JJ         = zeros(Int,PC_n); # index of nearest fish (0 if nothing near)
+KK         = zeros(Int,PC_n); # index of catch [0,1]
+cs         = ones(Float64,PC_n);
+mu         = zeros(Float64,PC_n);
+s2         = zeros(Float64,PC_n);
+S          = zeros(Float64,PC_n);
+M          = ones(Float64,PC_n);
+dmu        = zeros(Float64,PC_n);
+ds2        = ones(Float64,PC_n);
 cons = Fishers(Cons_xy,Cons_H,Cons_s,Cons_cn,Dmin,DDx,DDy,ANG,VR,JJ,KK,cs,mu,s2,S,M,dmu,ds2);
-
-###### Initialize waiting times (REF 2)
-#Tau_n   = zeros(Int,PC_n); # number of events (hauls) so far
-#Tau_t   = zeros(Int,PC_n); # time between current events (waiting time)
-#Tau_s   = zeros(Float64,PC_n); # cumulative waiting time
-#Tau_mu  = zeros(Float64,PC_n); # running average waiting time (wait_sum / wait_n)
-#Tau_dmu = ones(Float64,PC_n)*999; # min diff in mean waiting times between t and t-1
-#Tau_M   = zeros(Float64,PC_n); # component of running variance
-#Tau_S   = zeros(Float64,PC_n); # second comp of running variance
-#Tau_s2  = zeros(Float64,PC_n); # running variance
-#Tau_ds2 = ones(Float64,PC_n)*999; # running variance
-#tau     = Tau(Tau_n,Tau_t,Tau_s,Tau_mu,Tau_S,Tau_M,Tau_s2,Tau_dmu,Tau_ds2);
 
 ##### Initialize output storage
 OUT = Output(Fish_xy,Cons_xy,Fish_cl,Cons_H);
 
 return fish,cons,OUT
-#return Tau_n,Tau_t,Tau_s,Tau_mu,Tau_dmu,
-#       Dmin,DDx,DDy,ANG,VR,RN,JJ,KK,
-#       Fish_xy,Fish_ci,Fish_cl,
-#       Cons_xy,Cons_H
 end
 
 #### REFS

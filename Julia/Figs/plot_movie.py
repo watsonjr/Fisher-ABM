@@ -27,7 +27,7 @@ for i in np.arange(0,Fish.shape[2]):
 
     # save
     ti = str(i+100000)
-    plt.savefig('./PNG/Fig_' +ti[1:] +'.png',dpi=100,bbox_inches='tight')
+    plt.savefig('./Movie/Fig_' +ti[1:] +'.png',dpi=100,bbox_inches='tight')
     print(i)
     plt.close('all')
 

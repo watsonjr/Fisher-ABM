@@ -29,13 +29,10 @@ const PC_v    = 0.5; # speed of fishers
 const PC_ff   = 10; # radius of fish finder
 const PC_c    = 1; # distance at which fishers can catch fish
 const PC_ang  = 1; # correlated random walk angle
-const PC_pr   = 0.5; # probability of catching fish once encountered
+const PC_pr   = 0.2; # probability of catching fish once encountered
 
 ##### Cluster parameters
 const PCL_n   = 2;    # number of cluster centres
 const PCL_p   = 0.01; # probability that cluster center will move
-#const PCL_id  = [1:5]; # cluster ids
-#const PCL_ang = 30;   # cluster angle change per unit time (i.e. +- Fc_ang)
-#const PCL_al  = 2.5;  # levy flight constant (ref 1)
 
 end
