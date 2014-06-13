@@ -1,5 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from subprocess import call
+import os
+
+## Remove old figs
+os.system("rm -f ./Movie/*.png")
 
 ## Load in data
 Fish = np.load("../Data/Data_fish.npy")
