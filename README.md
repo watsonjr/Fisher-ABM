@@ -1,3 +1,0 @@
-Fisher-ABM
-==========
-Fisher-ABM
