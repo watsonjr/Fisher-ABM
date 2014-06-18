@@ -6,10 +6,11 @@ trips = 20; # number of repeats
 CPUE = Array(Float64,length(sn),trips);
 Tau  = Array(Float64,length(sn),trips);
 for i = 1:length(sn)
+	## modulate social network
+	SN = ones(PC_n,PC_n) .* sn[i];
+	for k = 1:PC_n; SN[k,k] = 1; end;
+
 	for j = 1:trips
-		## modulate social network
-		SN = ones(PC_n,PC_n) .* sn[i];
-		for k = 1:PC_n; SN[k,k] = 1; end;
 
 		## run model
 		fish,cons,OUT = init_equilibrium();
@@ -20,6 +21,7 @@ for i = 1:length(sn)
 		Tau[i,j]  = mean(cons.Dist);
 	end
 	print(i/length(sn))
+
 end
 return CPUE, Tau
 end
@@ -30,8 +32,8 @@ end
 #! FLEET's average catch per unit effort
 function sim_fleet()
 
-seasons = 30
-trips = 10; # number of repeats
+seasons = 1
+trips = 12; # number of repeats
 Social_network = Array(Float64,PC_n,PC_n,seasons)
 cpue = Array(Float64,trips);
 CPUE = Array(Float64,seasons); CPUE[1] = 0;
@@ -63,7 +65,7 @@ for i = 2:seasons # greedy search over seasons
 	for j = 1:trips # build up catch statistics
 
 		## run model
-		fish,cons,OUT = init_equilibrium();
+		fish,cons = init_equilibrium();
 		make_season(fish,cons,SN,0);
 
 		## record
@@ -79,7 +81,7 @@ for i = 2:seasons # greedy search over seasons
 	end
 
 	## Ticker
-	print(i/seasons,"\n")
+	#print(i/seasons,"\n")
 end
 return CPUE,Social_network
 end
@@ -89,8 +91,8 @@ end
 #! INDIVIDUAL's average catch per unit effort
 function sim_individual()
 
-seasons = 30
-trips   = 10; # number of repeats
+seasons = 200
+trips   = 30; # number of repeats
 Social_network = Array(Float64,PC_n,PC_n,seasons)
 cpue = Array(Float64,PC_n,trips);
 CPUE = Array(Float64,PC_n,seasons); CPUE[:,1] = 0;
@@ -105,8 +107,8 @@ for T = 2:seasons # greedy search over seasons
 
 	#! MAKE friends
 	idy   = find(STR.==1) # those fishers who want to make friends
-	LL 	  = length(idy);
-	if isempty(LL) == 0
+	if isempty(idy) == 0
+		LL 	  = length(idy);
 		idx   = randperm(LL); # randomly associate pairs to become friends
 		if mod(LL,2) == 0
 			idx = reshape(idx,(int(LL/2),2)); # if even number
@@ -122,8 +124,8 @@ for T = 2:seasons # greedy search over seasons
 
 	#! BREAK friends
 	idy   = find(STR.==0) # those fishers who want to break friendships
-	LL 	  = length(idy);
-	if isempty(LL) == 0
+	if isempty(idy) == 0
+		LL 	  = length(idy);
 		for i = 1:LL
 			j = find(SN[idy[i],:] .== 1.); # find your current friends
 			j = j[j.!=i]; # don't break up with yourself
@@ -140,7 +142,7 @@ for T = 2:seasons # greedy search over seasons
     for j = 1:trips # build up catch statistics
 
         ## run model
-        fish,cons,OUT = init_equilibrium();
+        fish,cons = init_equilibrium();
         make_season(fish,cons,SN,0);
 
         ## record
@@ -161,6 +163,7 @@ for T = 2:seasons # greedy search over seasons
     ## Ticker
     print(T/seasons,"\n")
 end
+
 return CPUE,Social_network
 end
 

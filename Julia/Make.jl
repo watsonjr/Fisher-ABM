@@ -1,13 +1,13 @@
 	
 #### Add modules
-using PyPlot
-using Types, Constants, NPZ, Devectorize
+using PyPlot, NPZ,
+@everywhere using Types, Constants, Devectorize
 
 #### Add functions and routines
-include("sub_functions.jl");
-include("sub_init.jl");
-include("sub_routines.jl");
-include("Experiments.jl");
+@everywhere include("sub_functions.jl");
+@everywhere include("sub_init.jl");
+@everywhere include("sub_routines.jl");
+@everywhere include("Experiments.jl");
 println("Libraries loaded: working:")
 
 #### Initialize
@@ -31,6 +31,7 @@ npzwrite("./Data/Data_simple.npz", ["x"=>1, "CPUE"=>CPUE, "Tau"=>Tau])
 
 ###### Optimize an Individual's social network
 @time (CPUE,Social_network) = sim_individual()
+npzwrite("./Data/Data_individual.npz", ["x"=>1, "CPUE"=>CPUE, "SN"=>Social_network])
 ####### END  #######
 
 

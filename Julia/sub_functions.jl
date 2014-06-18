@@ -153,4 +153,13 @@ function fnc_move(CL,FX,FS,CC,DXY,D1)
     return FX,[CL_x CL_y],[CC_x CC_y], D2
 end
 
+### Connectance
+function fnc_connectance(SN)
+	C = sum(SN,1);
+	C = sum(C,2);
+	C = squeeze(C,1);
+	C = squeeze(C,1);
+	return C
+end
+
 
