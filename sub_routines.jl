@@ -1,6 +1,6 @@
 
 #### Run a season
-function make_season(fish,cons,SN,ST)
+function make_trip(fish,cons,SN,ST)
 
 #while min of cumulative harvest is less than all fish in the region
 while minimum(cons.cs) .< (PF_n*PS_n)
