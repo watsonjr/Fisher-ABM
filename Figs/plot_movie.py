@@ -10,6 +10,7 @@ os.system("rm -f ./Movie/*.png")
 Fish = np.load("../Data/Data_fish.npy")
 Cons = np.load("../Data/Data_fishers.npy")
 Clus = np.load("../Data/Data_clusters.npy")
+Harv = np.load("../Data/Data_harvest.npy")
 
 ## plot
 

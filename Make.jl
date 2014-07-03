@@ -1,22 +1,25 @@
 	
 #### Add modules
-using PyPlot, NPZ,
-@everywhere using Types, Constants, Devectorize
+using PyPlot, NPZ, Devectorize
+using Types, Constants
 
 #### Add functions and routines
-@everywhere include("sub_functions.jl");
-@everywhere include("sub_init.jl");
-@everywhere include("sub_routines.jl");
-@everywhere include("Experiments.jl");
-println("Libraries loaded: working:")
+include("sub_init.jl");
+include("sub_functions.jl");
+include("sub_routines.jl");
+include("Experiments.jl");
 
 #### Initialize
-fish,cons,SN,OUT = init_equilibrium();
+fish,cons,OUT = init_equilibrium();
+
+
+
+
 
 
 ####### SIMULATION EXPERIMENTS #######
 ###### run for one season
-@time make_season(fish,cons,SN,1);
+@time make_trip(fish,cons,1);
 npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
 npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
 npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)

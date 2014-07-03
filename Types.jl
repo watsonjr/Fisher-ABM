@@ -11,18 +11,14 @@ end
 
 #### Define Fisher type
 type Fishers
-     x::Array{Float64} # location
-    H::Array{Float64} # harvest count
+    x::Array{Float64} # location
+    Ni::Array{Int} # index of nearest fish
+    Dmin::Array{Float64} # distance to nearest fish
+    DXY::Array{Float64} # direction unit vector
+	H::Array{Float64} # harvest count (1=catch, 0=no_catch)
     S::Array{Int} # make(1)/break(-1) friendships
     MI::Array{Int} # index of steaming or searching
-    CN::Array{Int} # contact network
-    Dmin::Array{Float64} # distance to nearest fish
-    DXY::Array{Float64} # direction vector (unit)
-    VR::Array{Float64} # speed
-    JJ::Array{Int} # index of nearest fish
-    KK::Array{Int} # 1/0 harvest index
-    cs::Array{Float64} # cumulative harvest
-    Dist::Array{Float64} # cumulative distance traveled 
+    SN::Array{Float64} # contact network
 end
 
 #### Output variable for plotting
