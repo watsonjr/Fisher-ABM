@@ -1,60 +1,57 @@
 
 ######## Functions for ABM
-#### CONTINUOUS DISTANCES
-#!calculate distances between fish and fishermen? + search/steam switch
-#! Returns Dx, the x-distances between fish and fishermen; Dy, y-distances;
-#! D the Euclidean distances, MI which is a indicator for search steam switch (???)
-#function fnc_distance(FF,CC,MI)
-#    ## x,y, distances
-#    Dx = FF[:,1]' .- CC[:,1];
-#    Dy = FF[:,2]' .- CC[:,2];
-#
-#    ## periodic boundaries
-#	GRD_mx_half = GRD_mx/2
-#    i = (abs(Dx).>(GRD_mx_half)) + (abs(Dy).>(GRD_mx_half));
-#    Dx[i.>1] = -sign(Dx[i.>1]).*(GRD_mx .- abs(Dx[i.>1]));
-#    Dy[i.>1] = -sign(Dy[i.>1]).*(GRD_mx .- abs(Dy[i.>1]));
-#
-#    ## Distance
-#	@devec D = sqrt(Dx.^2 .+ Dy.^2); #! This line takes 40% of computation
-#
-#	## search/steam switch
-#	MI[rand(PC_n).<=PC_rp] .-= 1;
-#	MI = abs(MI);
-#
-#    return D,Dx,Dy,MI
-#end
 
-#### DISCRETE DISTANCES
+#### FISH FINDER / DISTANCE
 #!calculate distances between fish and fishermen? + search/steam switch
 #! Returns Dx, the x-distances between fish and fishermen; Dy, y-distances;
 #! D the Euclidean distances, MI which is a indicator for search steam switch (???)
-function fnc_fishfinder(Fx,Cx,grd,PC_f)
-	Fi = round(Fx) .+ 1;
-	Ci = round(Cx) .+ 1;
+function fnc_fishfinder(Fx,Sx,Si,Cx,grd,PC_f)
+
+	# First, find fishers that are likely near fish
+	# by gauging distance to all school centres
+	II = cell(PC_n); # index of schools each fisher is near
+	for i = 1:PC_n
+		(dx,dy) = fnc_difference(Cx[i,:],Sx);
+		D = sqrt(abs2(dx) .+ abs2(dy));
+		JJ = find(D.<((2.5.*PF_sig).+PC_f));
+		II[i] = JJ # index of nearby schools (empty if none)
+	end
+
+	##### HEREEEEEEEE
+	# Output - index of nearest fish for all fishers (if any)
 	Ni = fill(0,PC_n,1);
 
+	# find for each fisher
 	for i = 1:PC_n
-		# get index of all fish near fisher i
-		DX = Ci[i,1] .- Fi[:,1]
-		DY = Ci[i,2] .- Fi[:,2]
-		j = (abs(DX).>grd) + (abs(DY).>grd);
-		DX[j.>1] = -sign(DY[j.>1]).*(GRD_mx .- abs(DX[j.>1]));
-		DY[j.>1] = -sign(DX[j.>1]).*(GRD_mx .- abs(DY[j.>1]));
-		I  = find(((abs(DX) .< PC_f) + (abs(DY) .< PC_f)) .== 2);
 
-		# find squared euclidean distance with these nearish fish
-		if isempty(I)==0
-			dx = Fx[I,1] .- Cx[i,1];
-			dy = Fx[I,2] .- Cx[i,2];
-			j = (abs(dx).>grd) + (abs(dy).>grd);
-			dx[j.>1] = -sign(dx[j.>1]).*(GRD_mx .- abs(dx[j.>1]));
-			dy[j.>1] = -sign(dy[j.>1]).*(GRD_mx .- abs(dy[j.>1]));
-			D   = abs2(dx) + abs2(dy);
-		 	dmi = find(D.==minimum(D));
+		if isempty(II[i]) == 0 # if there is a school nearby fisher i
 
-			# store nearest fish
-			Ni[i] = int(I[dmi[1]]); # Index of nearest fish in fishfinder
+			# if so, get index k of fish in all schools, near fisher i
+			k = Array(Float64,0)
+			for j = 1:length(II[i])
+				k = [k, find(Si .== II[i][j])];
+			end
+
+			# get dx and dy,
+			Ci = round(Cx[i,:]) .+ 1;
+			Fi = round(Fx[k,:]) .+ 1;
+			(dx,dy) = fnc_difference(Ci,Fi)
+
+			# get index of those fish, in schools k, near fisher i
+			I  = find(((abs(dx) .< PC_f) + (abs(dy) .< PC_f)) .== 2);
+
+			# find squared euclidean distance with these nearish fish
+			if isempty(I)==0
+				(dx,dy) = fnc_difference(Fx[k[I],:],Cx[i,:]);
+				D   = abs2(dx) + abs2(dy);
+				dmi = find(D.==minimum(D));
+
+				# store nearest fish
+				Ni[i] = int(k[I[dmi[1]]]); # Index of nearest fish in fishfinder
+			end
+
+		else 
+				Ni[i] = 0;
 		end
 	end
 
@@ -62,21 +59,23 @@ function fnc_fishfinder(Fx,Cx,grd,PC_f)
 end
 
 
-##### Distance calculation using KDTREE
-#function fnc_distance_3(FF,CC,Fish_finder)
-#	
-#	cons_Ni = Array(Int,PC_n,1)
-#	cons_Nd = Array(Float64,PC_n,1)
-#	Dxy     = Array(Float64,PC_n,2)
-#	for i = 1:PC_n
-#		ni,nd = nearest(FTREE,squeeze(CC[i,:]',2),1);
-#		if nd[1] > Fish_finder; nd[1]=NaN; ni[1]=0; end
-#		cons_Ni[i] = ni[1];
-#		cons_Nd[i] = nd[1];
-#	end
-#
-#    return cons_Ni, cons_Nd
-#end
+#### spatial Difference function
+#! x1 = first x,y location
+#! x2 = second x,y location
+#! dx,dy = difference in x,y accounting for periodic boundary
+function fnc_difference(x1,x2)
+	# difference
+	dx = x1[:,1] .- x2[:,1]
+	dy = x1[:,2] .- x2[:,2]
+	# periodic boundary
+	j = (abs(dy).>GRD_mx2) + (abs(dx).>GRD_mx2);
+	dx[j.>1] = -sign(dx[j.>1]).*(GRD_mx .- abs(dx[j.>1]));
+	dy[j.>1] = -sign(dy[j.>1]).*(GRD_mx .- abs(dy[j.>1]));
+
+	return dx,dy
+end
+
+
 
 #### Search/steam switch
 #! that is, is a fisher can't see any fish
@@ -135,12 +134,14 @@ function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
 
 		# calculate distances to all fish you have info on
 		DD = fill(NaN,PC_n) # distance to your fish and friend's
-		dx = fill(NaN,PC_n,2) # direction to fish
+		Dx = fill(NaN,PC_n) # dx
+		Dy = fill(NaN,PC_n) # dy
 		for i = 1:Jn # for each friend
 			ii = J[i]; # get his/her index
 			if Ni[ii] != 0 # if they see a fish
-				dx[i,:] = Fx[Ni[ii],:] - Cx[id,:]; # calc you direction to it
-				DD[i] = sqrt(abs2(dx[i,1]) + abs2(dx[i,2])); # and distance
+				(dx,dy) = fnc_difference(Fx[Ni[ii],:],Cx[id,:]);
+				DD[i] = sqrt(abs2(dx) + abs2(dy))[1]; # and distance
+				Dx[i] = dx[1]; Dy[i] = dy[1];
 			end
 		end
 		Dmin = minimum(DD); # shortest distance to a fish
@@ -148,10 +149,11 @@ function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
 		# Action-decide heading, catch fish
 		if isnan(Dmin) == 0 # if I see anything
 			ii = find(DD .== Dmin); #!index of friend next to fish
+			ii = ii[1]; # if more than one friend is next to the same fish
 			jj = Ni[J[ii]]; #!index of nearest fish 
 
 			# calculate unit vector DXY to nearest fish
-			Dxy = dx[ii,:] ./ norm(dx[ii,:]); 
+			Dxy = [Dx[ii] Dy[ii]] ./ norm([Dx[ii] Dy[ii]]); 
 
 			if Dmin <= PC_h #if there's a fish within view
 				# probabilistic catch; if successful, then catch fish

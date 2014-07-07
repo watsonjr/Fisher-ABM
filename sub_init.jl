@@ -31,7 +31,8 @@ cons_dx  = DXY ./ sqrt(DXY[:,1].^2 + DXY[:,2].^2);
 cons_H   = zeros(Float64,PC_n); # catch at time t
 cons_s   = randn(PC_n);cons_s[cons_s.<0]=-1;cons_s[cons_s.>0]=1;cons_s=int(cons_s)
 cons_mi  = int(zeros(PC_n));
-cons_sn  = ones(PC_n,PC_n) .* eps(); for j = 1:PC_n; cons_sn[j,j] = 1; end;
+cons_sn  = ones(PC_n,PC_n) .* eps(); 
+for j = 1:PC_n; cons_sn[j,j] = 1; end;
 
 
 ##### Initialize

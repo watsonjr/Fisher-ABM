@@ -8,7 +8,7 @@ function make_trip(fish,cons,ST)
  
      ## Distances
      #D,Dx,Dy,cons.MI = fnc_distance(fish.fx,cons.x,cons.MI);
-     cons.Ni = fnc_fishfinder(fish.fx,cons.x,int(GRD_mx/2),PC_f);
+     cons.Ni = fnc_fishfinder(fish.fx,fish.sx,fish.fs,cons.x,GRD_mx2,PC_f);
      #(cons.Ni,cons.Dmin) = fnc_distance_3(fish.fx,cons.x,PC_f);
  
  	 ## Update steam/search switch

@@ -25,16 +25,16 @@ npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
 npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
 npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 
-###### Simple problem (raise SN entirely)
-@time CPUE,Tau = sim_simple();
-npzwrite("./Data/Data_simple.npz", ["x"=>1, "CPUE"=>CPUE, "Tau"=>Tau])
-
-###### Optimize SN for the fleet catch
-@time (CPUE,Social_network) = sim_fleet();
-
-###### Optimize an Individual's social network
-@time (CPUE,Social_network) = sim_individual()
-npzwrite("./Data/Data_individual.npz", ["x"=>1, "CPUE"=>CPUE, "SN"=>Social_network])
-####### END  #######
+####### Simple problem (raise SN entirely)
+#@time CPUE,Tau = sim_simple();
+#npzwrite("./Data/Data_simple.npz", ["x"=>1, "CPUE"=>CPUE, "Tau"=>Tau])
+#
+####### Optimize SN for the fleet catch
+#@time (CPUE,Social_network) = sim_fleet();
+#
+####### Optimize an Individual's social network
+#@time (CPUE,Social_network) = sim_individual()
+#npzwrite("./Data/Data_individual.npz", ["x"=>1, "CPUE"=>CPUE, "SN"=>Social_network])
+######## END  #######
 
 
