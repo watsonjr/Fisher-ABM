@@ -31,13 +31,17 @@ cons_dx  = DXY ./ sqrt(DXY[:,1].^2 + DXY[:,2].^2);
 cons_H   = zeros(Float64,PC_n); # catch at time t
 cons_s   = randn(PC_n);cons_s[cons_s.<0]=-1;cons_s[cons_s.>0]=1;cons_s=int(cons_s)
 cons_mi  = int(zeros(PC_n));
+cons_Ts  = zeros(PC_n);
+cons_ts  = zeros(PC_n);
+cons_ns  = zeros(PC_n);
 cons_sn  = ones(PC_n,PC_n) .* eps(); 
 for j = 1:PC_n; cons_sn[j,j] = 1; end;
 
 
 ##### Initialize
 fish = Fish(fish_fx,fish_fs,fish_sx);
-cons = Fishers(cons_xy,cons_Ni,cons_Nd,cons_dx,cons_H,cons_s,cons_mi,cons_sn)
+cons = Fishers(cons_xy,cons_Ni,cons_Nd,cons_dx,
+			   cons_H,cons_s,cons_mi,cons_sn,cons_Ts,cons_ts,cons_ns)
 OUT  = Output(fish_fx,cons_xy,fish_sx,cons_H);
 
 return fish,cons,OUT

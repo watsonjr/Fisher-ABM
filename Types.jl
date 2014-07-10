@@ -18,7 +18,10 @@ type Fishers
 	H::Array{Float64} # harvest count (1=catch, 0=no_catch)
     S::Array{Int} # make(1)/break(-1) friendships
     MI::Array{Int} # index of steaming or searching
-    SN::Array{Float64} # contact network
+    SN::Array{Float64} # social network
+    Ts::Array{Float64} # running mean time between schools for each fisher
+    ts::Array{Float64} # current time between schools for each fisher
+    ns::Array{Int} # number of schools visited
 end
 
 #### Output variable for plotting

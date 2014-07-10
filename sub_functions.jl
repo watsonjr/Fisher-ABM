@@ -1,6 +1,35 @@
 
 ######## Functions for ABM
 
+#### HAUL TIME
+#! running time between hauls
+#! and estimate the running mean time between schools
+#! and estimate the difference in this running mean 
+#! which is the switch for the while loop
+function fnc_tau(H,Ts,ts,ns,dTs)
+	#H=cons.H;Ts=cons.Ts;ts=cons.ts;sn=cons.sn;
+	for I = 1:PC_n
+		# if you caught fish
+		# and the cumulative haul time (ts) is large 
+		# then you've encountered a new school
+		if H[I] == 1
+			if ts[I] > (10*PF_sig/PC_v) 
+				ns[I] += 1; # update school counter
+				Ts_old = Ts[I]; # current mean
+				Ts[I] = Ts_old + ((ts[I]-Ts_old)/ns[I]) # run mean calculation
+				dTs[I] = abs(Ts[I]-Ts_old)/Ts[I]; # fractional change in estimate
+				ts[I] = 1; # reset how long it took to find school
+			else
+				ts[I] = 1;
+			end
+		else # if you didn't catch anythin
+			ts[I] += 1
+		end
+	end
+	return Ts,ts,ns,dTs
+end
+
+
 #### FISH FINDER / DISTANCE
 #!calculate distances between fish and fishermen? + search/steam switch
 #! Returns Dx, the x-distances between fish and fishermen; Dy, y-distances;
@@ -188,7 +217,7 @@ end
 
 
 #### HARVEST for a season
-#! KK is the index of whether a given fish has caught a fish
+#! KK is the index of whether a given fisher has caught a fish
 #! JJ is the index of the fish he's caught
 #! CH is the cumulative catch
 #! FF are the fish locations, which must be updated is fish are caught
@@ -229,10 +258,10 @@ function fnc_move(CL,FX,FS,CC,Dm,DXY)
 	end
 
     # fishers move
-    v = Dm; v[v.<2] = 2; v[v.>PC_f] = PC_f; # slow down as you approach fish
-    v = (v .- 2) ./ (10-2);
-    range2 = PC_v - 0.2;
-	V = (v*range2) .+ 0.2;
+    v = Dm; v[v.<PC_h] = PC_h; v[v.>PC_f] = PC_f; # slow down as you approach fish
+    v = (v .- PC_h) ./ (PC_f-PC_h);
+    range2 = PC_v - PC_vmn;
+	V = (v*range2) .+ PC_vmn;
 
     CC_x = mod(CC[:,1] .+ (DXY[:,1].*V), GRD_mx);
     CC_y = mod(CC[:,2] .+ (DXY[:,2].*V), GRD_mx);

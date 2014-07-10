@@ -15,15 +15,34 @@ fish,cons,OUT = init_equilibrium();
 
 
 
-
-
 ####### SIMULATION EXPERIMENTS #######
 ###### run for one season
-@time make_trip(fish,cons,1);
-npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
-npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
-npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
-npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+#@time make_trip(fish,cons,1);
+#@time make_season(fish,cons,1);
+#npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
+#npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
+#npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
+#npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+
+
+
+###### Test different behaviors
+RP = [eps():0.1:1];
+Ts = cell(size(RP));
+for i = 1:length(RP)
+	global PC_rp = RP[i];
+	fish,cons,OUT = init_equilibrium();
+	Ts[i] = make_season(fish,cons,0);
+	print("i \n")
+end
+
+TS = zeros(size(RP))
+for i = 1:length(RP)
+	TS[i] = Ts[i][1]
+end
+npzwrite("./Data/Data_Ts.npy", TS)
+
+
 
 ####### Simple problem (raise SN entirely)
 #@time CPUE,Tau = sim_simple();
