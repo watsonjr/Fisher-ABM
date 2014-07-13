@@ -2,18 +2,19 @@
 #### Run a season
 function make_season(fish,cons,ST)
  
- #while min of cumulative harvest is less than all fish in the region
- dTs = ones(PC_n);
+ #! RUN
  #! while difference in estimated Tau_s is greater that 1%
  #! and the minimum number of schools visited is 10 
- while maximum(dTs) > 0.01 || minimum(cons.ns) < 10
+ dTs = ones(PC_n);
+ #while maximum(dTs) > 0.001 || 
+ while minimum(cons.ns) < 500
  
     ## Distances
     #D,Dx,Dy,cons.MI = fnc_distance(fish.fx,cons.x,cons.MI);
     cons.Ni = fnc_fishfinder(fish.fx,fish.sx,fish.fs,cons.x,GRD_mx2,PC_f);
     #(cons.Ni,cons.Dmin) = fnc_distance_3(fish.fx,cons.x,PC_f);
  
- 	## Update steam/search switch
+ 	## Update steam(MI=0)/search(MI=1) switch
  	cons.MI = fnc_steam(cons.MI)
  
     ## Contact network from probabilistic social network
@@ -46,6 +47,14 @@ function make_season(fish,cons,ST)
          OUT.cons_H  = cat(2,OUT.cons_H,cons.H);
      end
  end
+
+# Save
+if ST == 1
+	npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
+	npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
+	npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
+	npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+end
 
 return cons.Ts
 end

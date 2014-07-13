@@ -46,7 +46,6 @@ function fnc_fishfinder(Fx,Sx,Si,Cx,grd,PC_f)
 		II[i] = JJ # index of nearby schools (empty if none)
 	end
 
-	##### HEREEEEEEEE
 	# Output - index of nearest fish for all fishers (if any)
 	Ni = fill(0,PC_n,1);
 
@@ -111,8 +110,18 @@ end
 #! they can either spin around or move in a straightish line
 #! they switch between this probabilistically
 function fnc_steam(MI)
-	MI[rand(PC_n).<=PC_rp] .-= 1;
-	MI = abs(MI);
+	for i = 1:PC_n
+		if MI[i] == 1 # if steaming
+			if rand() < PC_rp # maybe switch to tumbling
+				MI[i] = 0
+			end
+		else # if tumbling
+			if rand() < (1-PC_rp) # maybe switch to steaming
+				MI[i] = 1
+			end
+		end
+	end
+	return MI
 end
 
 
@@ -149,7 +158,7 @@ end
 #! Return the minimum distance, updated heading, JJ index of nearest fish
 #! (KK) whether or not you caught something (?)
 function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
-	dxy=cons.DXY;Ni=cons.Ni;Fx=fish.fx;Cx=cons.x;MI=cons.MI;
+	#dxy=cons.DXY;Ni=cons.Ni;Fx=fish.fx;Cx=cons.x;MI=cons.MI;
 
 	DXY  = Array(Float64,PC_n,2) # heading
 	DMIN = Array(Float64,PC_n) # shortest distance
@@ -196,12 +205,19 @@ function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
 			jj = 0; kk = 0;
 
 			#Steam or search pattern
-			if MI == 0 #
-				Dxy = dxy[id,:] + (randn(1,2).*PC_r1)
-				Dxy = Dxy ./ norm(Dxy)
-			else
-				Dxy = dxy[id,:] + (randn(1,2).*PC_r2)
-				Dxy = Dxy ./ norm(Dxy)
+			if MI[id] == 0 # # steam
+				angle = tan(Dxy[1]/Dxy[2])
+				angle = angle .+ 15 * rand() .- 7.5;
+				dx  = cosd(angle); dy  = sind(angle);
+				Dxy = [dx dy];
+				#Dxy = dxy[id,:] + (randn(1,2).*PC_r1)
+				#Dxy = Dxy ./ norm(Dxy)
+			else # tumble
+				angle = 360*rand();
+				dx  = cosd(angle); dy  = sind(angle);
+				Dxy = [dx dy];
+				#Dxy = dxy[id,:] + (randn(1,2).*PC_r2)
+				#Dxy = Dxy ./ norm(Dxy)
 			end
 		end
 
@@ -241,32 +257,42 @@ end
 #! Return the locations of the fish, school locations,
 #! updated fisher locations
 function fnc_move(CL,FX,FS,CC,Dm,DXY)
+	#CL=fish.sx;FX=fish.fx;FS=fish.fs;CC=cons.x;Dm=cons.Dmin;DXY=cons.DXY;
 
-	# schools move randomly
-    rn = rand(PS_n);
-    i = find(rn .<= PS_p);
-    CL_x = CL[:,1]; CL_y = CL[:,2];
-    CL_x[i] = rand() * GRD_mx;
-    CL_y[i] = rand() * GRD_mx;
-
-    # fish move
-    for j = 1:length(i) #! for each fish in the school that moves
-        Fx = mod(CL_x[i[j]].+(randn(PF_n,1)*PF_sig),GRD_mx);
-    	Fy = mod(CL_y[i[j]].+(randn(PF_n,1)*PF_sig),GRD_mx);
-		FX[FS.==i[j],1] = Fx; #! update fish locations
-		FX[FS.==i[j],2] = Fy;
+	# schools and fish move
+	for i = 1:PS_n
+		j = find(FS.==i);
+		k = FX[j,1];
+		m = find(isnan(k).==0)
+		if isempty(m) == 1# if no fish left in school
+			CL_x = rand() * GRD_mx;
+			CL_y = rand() * GRD_mx;
+			F_x  = mod(CL_x.+(randn(PF_n,1)*PF_sig),GRD_mx);
+			F_y  = mod(CL_y.+(randn(PF_n,1)*PF_sig),GRD_mx);
+			CL[i,:] = [CL_x CL_y];
+			FX[j,:] = [F_x F_y];
+		elseif rand() < PS_p # else maybe jump
+			CL_x = rand() * GRD_mx;
+			CL_y = rand() * GRD_mx;
+			F_x  = mod(CL_x.+(randn(PF_n,1)*PF_sig),GRD_mx);
+			F_y  = mod(CL_y.+(randn(PF_n,1)*PF_sig),GRD_mx);
+			CL[i,:] = [CL_x CL_y];
+			FX[j,:] = [F_x F_y];
+		end
 	end
 
     # fishers move
-    v = Dm; v[v.<PC_h] = PC_h; v[v.>PC_f] = PC_f; # slow down as you approach fish
+    # slow down as you approach fish
+    v = Dm; v[v.<PC_h] = PC_h; v[v.>PC_f] = PC_f;
     v = (v .- PC_h) ./ (PC_f-PC_h);
     range2 = PC_v - PC_vmn;
 	V = (v*range2) .+ PC_vmn;
 
     CC_x = mod(CC[:,1] .+ (DXY[:,1].*V), GRD_mx);
     CC_y = mod(CC[:,2] .+ (DXY[:,2].*V), GRD_mx);
+    CC = [CC_x CC_y];
 
-    return FX,[CL_x CL_y],[CC_x CC_y]
+    return FX,CL,CC
 end
 
 

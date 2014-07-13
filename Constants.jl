@@ -15,7 +15,7 @@ const GRD_x  = [0:GRD_dx:GRD_mx];
 
 ##### School parameters
 const PS_n   = 1 # number of schools
-const PS_p   = 0.005; # probability school will move
+const PS_p   = 0.001; # probability school will move (#do I need this)
 
 #### Fish parameters
 const PF_n	 = 60 # number of fish per school
@@ -27,9 +27,9 @@ const PC_n   = 1; # number of fishers
 const PC_v   = 2.6; # max speed of fishers (km per time)
 const PC_vmn = PC_v/5; # min speed of fishers (km per time)
 const PC_h   = 1; # distance at which fishers can catch fish (km)
-const PC_r1  = .5; # correlated random walk constant (steam)
-const PC_r2  = .005; # correlated random walk constant (search)
-#const PC_rp  = 0.1; # steam / search switching probability
+const PC_r1  = .005; # correlated random walk constant (tumble)
+const PC_r2  = 1.; # correlated random walk constant (ballistic)
+#const PC_rp  = 0.01; # probability of r1->r2 (r2->r1 = 1-PC_rp)
 const PC_f   = 5.; # radius of fish finder (x grid cells; km)
 const PC_q	 = 1.; # prob of catching fish
 

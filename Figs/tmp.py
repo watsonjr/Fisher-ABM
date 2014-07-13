@@ -1,6 +1,9 @@
+import numpy as np
+import matplotlib.pyplot as plt
 
-OUT = zeros(200)
-for i in np.arange(0,199):
-    OUT[i] = nx.average_clustering(nx.Graph(SN[:,:,i]))
+## Load in data
+TS = np.load("../Data/Data_Ts.npy")
+plt.plot(TS)
+plt.show()
 
 
