@@ -20,8 +20,10 @@ type Fishers
     MI::Array{Int} # index of steaming or searching
     SN::Array{Float64} # social network
     Ts::Array{Float64} # running mean time between schools for each fisher
+    Tv::Array{Float64} # running variance time between schools for each fisher
     ts::Array{Float64} # current time between schools for each fisher
     ns::Array{Int} # number of schools visited
+    V::Array{Float64} # speed
 end
 
 #### Output variable for plotting

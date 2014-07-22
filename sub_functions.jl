@@ -6,7 +6,7 @@
 #! and estimate the running mean time between schools
 #! and estimate the difference in this running mean 
 #! which is the switch for the while loop
-function fnc_tau(H,Ts,ts,ns,dTs)
+function fnc_tau(H,Ts,Tv,ts,ns,dTs)
 	#H=cons.H;Ts=cons.Ts;ts=cons.ts;sn=cons.sn;
 	for I = 1:PC_n
 		# if you caught fish
@@ -16,8 +16,12 @@ function fnc_tau(H,Ts,ts,ns,dTs)
 			if ts[I] > (10*PF_sig/PC_v) 
 				ns[I] += 1; # update school counter
 				Ts_old = Ts[I]; # current mean
-				Ts[I] = Ts_old + ((ts[I]-Ts_old)/ns[I]) # run mean calculation
-				dTs[I] = abs(Ts[I]-Ts_old)/Ts[I]; # fractional change in estimate
+				Tv_old = Tv[I]; # current variance
+
+				Ts[I] = Ts_old + ((ts[I]-Ts_old)/ns[I]) # run mean
+				Tv[I] = Tv_old + ((ts[I]-Ts_old)*(ts[I]-Ts[I])) # run variance
+				
+				dTs[I] = abs(Ts[I]-Ts_old)/Ts[I]; # fractional change in mean
 				ts[I] = 1; # reset how long it took to find school
 			else
 				ts[I] = 1;
@@ -26,7 +30,7 @@ function fnc_tau(H,Ts,ts,ns,dTs)
 			ts[I] += 1
 		end
 	end
-	return Ts,ts,ns,dTs
+	return Ts,Tv,ts,ns,dTs
 end
 
 
@@ -162,6 +166,7 @@ function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
 
 	DXY  = Array(Float64,PC_n,2) # heading
 	DMIN = Array(Float64,PC_n) # shortest distance
+	V	 = Array(Float64,PC_n) # speed
 	JJ   = fill(0,PC_n) # index of nearest fish
 	KK   = fill(0,PC_n) # index of whether you caught fish
 
@@ -200,24 +205,31 @@ function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
 				kk = 0; #index of whther harvest or not?
 			end
 
+			# slow speed
+			V[id] = PC_v / 5
+				
 		else # else I roam around randomly 
 			Dmin = 999; # flag, if you don't see anything
 			jj = 0; kk = 0;
 
 			#Steam or search pattern
 			if MI[id] == 0 # # steam
-				angle = tan(Dxy[1]/Dxy[2])
-				angle = angle .+ 15 * rand() .- 7.5;
-				dx  = cosd(angle); dy  = sind(angle);
-				Dxy = [dx dy];
-				#Dxy = dxy[id,:] + (randn(1,2).*PC_r1)
+				#angle = atand(dxy[1]/dxy[2]);
+				#angle = angle .+ (PC_r*2) * rand() .- PC_r;
+				#dx  = cosd(angle); dy  = sind(angle);
+				#Dxy = [dx dy];
+				#Dxy = dxy[id,:] + (randn(1,2).*PC_r) # bendy walk
 				#Dxy = Dxy ./ norm(Dxy)
+				Dxy = dxy; # straight line
+				V[id] = PC_v # fast speed
 			else # tumble
-				angle = 360*rand();
-				dx  = cosd(angle); dy  = sind(angle);
-				Dxy = [dx dy];
+				#angle = 360*rand();
+				#dx  = cosd(angle); dy  = sind(angle);
+				#Dxy = [dx dy];
 				#Dxy = dxy[id,:] + (randn(1,2).*PC_r2)
-				#Dxy = Dxy ./ norm(Dxy)
+				Dxy = randn(1,2); # random walk
+				Dxy = Dxy ./ norm(Dxy)
+				V[id] = PC_v / 3 # slow speed
 			end
 		end
 
@@ -228,7 +240,7 @@ function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
 		KK[id] = kk[1];
 	end
 
-    return DMIN,DXY,JJ,KK
+    return DMIN,DXY,JJ,KK,V
 end
 
 
@@ -256,7 +268,7 @@ end
 #! Randomly move the fish schools. 
 #! Return the locations of the fish, school locations,
 #! updated fisher locations
-function fnc_move(CL,FX,FS,CC,Dm,DXY)
+function fnc_move(CL,FX,FS,CC,Dm,DXY,V)
 	#CL=fish.sx;FX=fish.fx;FS=fish.fs;CC=cons.x;Dm=cons.Dmin;DXY=cons.DXY;
 
 	# schools and fish move
@@ -283,10 +295,10 @@ function fnc_move(CL,FX,FS,CC,Dm,DXY)
 
     # fishers move
     # slow down as you approach fish
-    v = Dm; v[v.<PC_h] = PC_h; v[v.>PC_f] = PC_f;
-    v = (v .- PC_h) ./ (PC_f-PC_h);
-    range2 = PC_v - PC_vmn;
-	V = (v*range2) .+ PC_vmn;
+    #v = Dm; v[v.<PC_h] = PC_h; v[v.>PC_f] = PC_f;
+    #v = (v .- PC_h) ./ (PC_f-PC_h);
+    #range2 = PC_v - PC_vmn;
+	#V = (v*range2) .+ PC_vmn;
 
     CC_x = mod(CC[:,1] .+ (DXY[:,1].*V), GRD_mx);
     CC_y = mod(CC[:,2] .+ (DXY[:,2].*V), GRD_mx);

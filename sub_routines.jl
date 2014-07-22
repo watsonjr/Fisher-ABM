@@ -6,8 +6,7 @@ function make_season(fish,cons,ST)
  #! while difference in estimated Tau_s is greater that 1%
  #! and the minimum number of schools visited is 10 
  dTs = ones(PC_n);
- #while maximum(dTs) > 0.001 || 
- while minimum(cons.ns) < 500
+ while maximum(dTs) > 0.001 || minimum(cons.ns) < 500
  
     ## Distances
     #D,Dx,Dy,cons.MI = fnc_distance(fish.fx,cons.x,cons.MI);
@@ -23,21 +22,21 @@ function make_season(fish,cons,ST)
  	## Gather Information
  	#! return nearest distance, updated heading for nearest fish,
  	#! index of nearest fish, harvest success/failure index,
- 	(cons.Dmin,cons.DXY,JJ,KK) = fnc_information(cons.DXY,cons.Ni,
+ 	(cons.Dmin,cons.DXY,JJ,KK,cons.V) = fnc_information(cons.DXY,cons.Ni,
  	   								fish.fx,cons.x,cons.MI,CN);
  
     ## Harvest
-    #! cons. => CC in function scope
     #! update te cumulative harvest and fish locations
     (cons.H,fish.fx) = fnc_harvest(KK,JJ,cons.H,fish.fx);
  
     ## Move
     #! update positions
     (fish.fx,fish.sx,cons.x) = fnc_move(fish.sx,fish.fx,fish.fs,
-     									 cons.x,cons.Dmin,cons.DXY);
+     									 cons.x,cons.Dmin,cons.DXY,cons.V);
  
 	## Estimate expected time searching for a school
-	(cons.Ts,cons.ts,cons.ns,dTs) = fnc_tau(KK,cons.Ts,cons.ts,cons.ns,dTs);
+	(cons.Ts,cons.Tv,cons.ts,cons.ns,dTs) = fnc_tau(KK,cons.Ts,
+											cons.Tv,cons.ts,cons.ns,dTs);
 
  	## Save
      if ST == 1
@@ -56,7 +55,7 @@ if ST == 1
 	npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 end
 
-return cons.Ts
+return cons.Ts, cons.Tv
 end
 
 
