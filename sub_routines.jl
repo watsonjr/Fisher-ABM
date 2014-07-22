@@ -55,7 +55,7 @@ if ST == 1
 	npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 end
 
-return cons.Ts, cons.Tv
+return cons.Ts, cons.Tv # expectataion and variance in time between schools
 end
 
 

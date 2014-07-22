@@ -220,7 +220,7 @@ function fnc_information(dxy,Ni,Fx,Cx,MI,CN)
 				#Dxy = [dx dy];
 				#Dxy = dxy[id,:] + (randn(1,2).*PC_r) # bendy walk
 				#Dxy = Dxy ./ norm(Dxy)
-				Dxy = dxy; # straight line
+				Dxy = dxy[id,:]; # straight line
 				V[id] = PC_v # fast speed
 			else # tumble
 				#angle = 360*rand();
