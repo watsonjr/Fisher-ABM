@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 ## Load in data
 Harv = np.load("../Data/Data_harvest.npy")
-
+print(Harv)
 ## Estimate times between hauls
 HS = np.empty([Harv.shape[0]],dtype=object)
 TT = np.empty([1],dtype=int);

@@ -1,19 +1,24 @@
 module Types
 
-export Fish, Fishers, Output
+export School, Fish, Fishers, Output
 
 #### Define Fish type
 type Fish
     fx::Array{Float64} # fish location in xy
     fs::Array{Int} # index of school fish is associated with
-    sx::Array{Float64} # school xy
+end
+
+type School
+    x::Array{Float64} # school xy
+    fish::Array{Int} #index of the fish in the school
 end
 
 #### Define Fisher type
 type Fishers
     x::Array{Float64} # location
     Ni::Array{Int} # index of nearest fish
-    Dmin::Array{Float64} # distance to nearest fish
+    target::Array{Int} # index of target fish
+    Dmin::Array{Float64} # distance to target fish
     DXY::Array{Float64} # direction unit vector
 	H::Array{Float64} # harvest count (1=catch, 0=no_catch)
     S::Array{Int} # make(1)/break(-1) friendships
