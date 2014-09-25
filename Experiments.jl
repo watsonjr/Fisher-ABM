@@ -13,9 +13,10 @@ for i = 1:length(sn)
 	for j = 1:trips
 
 		## run model
-		school,fish,cons,OUT = init_equilibrium();
+		school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
 		cons.SN=SN
-		make_season(school,fish,cons,1,1);
+		FLAGS["save"]=true
+		make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1);
 
 		## record
 		CPUE[i,j] = mean(cons.cs ./ cons.Dist);
@@ -66,8 +67,9 @@ for i = 2:seasons # greedy search over seasons
 	for j = 1:trips # build up catch statistics
 
 		## run model
-		school,fish,cons = init_equilibrium();
-		make_season(fish,cons,SN,0);
+		school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+		cons.SN=SN
+		make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 
 		## record
 		cpue[j] = mean(cons.cs ./ cons.Dist);
@@ -143,8 +145,9 @@ for T = 2:seasons # greedy search over seasons
     for j = 1:trips # build up catch statistics
 
         ## run model
-        school,fish,cons = init_equilibrium();
-        make_season(fish,cons,SN,0);
+        school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+        cons.SN=SN
+        make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 
         ## record
         cpue[:,j] = cons.cs ./ cons.Dist;

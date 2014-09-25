@@ -62,7 +62,34 @@ cons = Fishers(cons_xy,cons_Ni,cons_target,cons_Nd,cons_dx,
 			   cons_ts,cons_ns,cons_v)
 OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
 
-return school,fish,cons,OUT
+
+
+#==== Events & Flags ======#
+ #Events list what happened to whom (fish, fisher or school) 
+ #within the last timestep to know where updates are needed
+ #NB: specific functions control specific events, try not
+ #to change them everywhere.
+ 
+ #Events for fish: captured
+ #Events for fisher: captor, targeting (fish found but outside harvesting distance)
+ #		new neighbor (located another fish), new target (changed targeted fish)
+ #Events for school: jumped
+ EVENTS=(ASCIIString=>Set{Int})["captured"=>Set{Int}(), "captor"=>Set{Int}(),
+ 	"new_target"=>Set{Int}(),"new_neighbor"=>Set{Int}(),
+ 	"targeting"=>Set{Int}(),"jumped"=>Set{Int}()]
+
+
+#Flags: Switches that control the behaviour of the simulation
+ # benichou: can detect fish only at rest
+ # rtree: Use r-tree to find nearest neighbor among fish
+ FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true,"save"=>false]
+
+
+#==== Fishtree =====#
+ #One tree per school
+ fishtree=Fishtree([fnc_makefishtree(i,school,fish) for i=1:PS_n] )
+
+return school,fish,cons,fishtree,EVENTS,FLAGS,OUT
 end
 
 #### REFS

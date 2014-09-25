@@ -16,8 +16,8 @@ include("Experiments.jl");
 ###### run for one season
 
 global PC_rp = 0.99; # choose random change in walk
-school,fish,cons,OUT = init_equilibrium();
-@time  make_season(school,fish,cons,0);
+school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+@time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
 npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
 npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
@@ -31,8 +31,8 @@ RP = linspace(0.1,.95,20);
 Ts = cell(size(RP));
 for i = 1:length(RP)
 	global PC_rp = RP[i];
-	school,fish,cons,OUT = init_equilibrium();
-	make_season(school,fish,cons,0);
+	school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+	make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 	Ts[i] = cons.Ts, cons.Tv;
 	print(i,"\n")
 end
@@ -52,8 +52,8 @@ for i = 1:length(SIG)
 	for j = 1:length(FF)
 		global PF_sig = SIG[i];
 		global PC_f   = FF[j];
-		school,fish,cons,OUT = init_equilibrium();
-		make_season(school,fish,cons,0);
+		school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+		make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 		Ts[i,j] = cons.Ts, cons.Tv;
 		print(i," ",j,"\n")
 	end

@@ -1,6 +1,6 @@
 
 #### Run a season
-function make_season(school,fish,cons,ST,stopflag=2)
+function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2)
  
  #! RUN
  #! while difference in estimated Tau_s is greater that 1%
@@ -19,30 +19,8 @@ function make_season(school,fish,cons,ST,stopflag=2)
  
  whilecond=[cond1,cond2][stopflag]
 
+ ST=FLAGS["save"]
  
- 
- #==== Events & Flags ======#
- #Events list what happened to whom (fish, fisher or school) 
- #within the last timestep to know where updates are needed
- #NB: specific functions control specific events, try not
- #to change them everywhere.
- 
- #Events for fish: captured
- #Events for fisher: captor, targeting (fish found but outside harvesting distance)
- #		new neighbor (located another fish), new target (changed targeted fish)
- #Events for school: jumped
- EVENTS=(ASCIIString=>Set{Int})["captured"=>Set{Int}(), "captor"=>Set{Int}(),
- 	"new_target"=>Set{Int}(),"new_neighbor"=>Set{Int}(),
- 	"targeting"=>Set{Int}(),"jumped"=>Set{Int}()]
-
- #Flags: Switches that control the behaviour of the simulation
- # benichou: can detect fish only at rest
- # rtree: Use r-tree to find nearest neighbor among fish
- FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true]
-
- #==== Fishtree =====#
- #One tree per school
- fishtree=Fishtree([fnc_makefishtree(i,school,fish) for i=1:PS_n] )
  
  args=[school,fish,cons,fishtree,EVENTS,FLAGS] # arguments of most functions
  turns=0
