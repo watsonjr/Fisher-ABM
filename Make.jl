@@ -2,6 +2,8 @@
 #### Add modules
 using PyPlot, NPZ, Devectorize
 using Types, Constants
+using PyCall
+@pyimport rtree.index as pyrtree
 
 #### Add functions and routines
 include("sub_init.jl");

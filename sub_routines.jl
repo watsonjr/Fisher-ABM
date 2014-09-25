@@ -21,26 +21,30 @@ function make_season(school,fish,cons,ST,stopflag=2)
 
  
  
- #==== Flags ======#
- #Flags list what happened to whom (fish, fisher or school) 
+ #==== Events & Flags ======#
+ #Events list what happened to whom (fish, fisher or school) 
  #within the last timestep to know where updates are needed
- #NB: specific functions control specific flags, try not
+ #NB: specific functions control specific events, try not
  #to change them everywhere.
  
- #Flags for fish: captured
- #Flags for fisher: captor, targeting (fish found but outside harvesting distance)
- #					new target (just changed targeted fish)
- #Flags for school: jumped
-
- #Hack: I also include switches like benichou so that they are always passed along
- FLAGS=(ASCIIString=>Set{Int})["captured"=>Set{Int}(), "captor"=>Set{Int}(),
+ #Events for fish: captured
+ #Events for fisher: captor, targeting (fish found but outside harvesting distance)
+ #		new neighbor (located another fish), new target (changed targeted fish)
+ #Events for school: jumped
+ EVENTS=(ASCIIString=>Set{Int})["captured"=>Set{Int}(), "captor"=>Set{Int}(),
  	"new_target"=>Set{Int}(),"new_neighbor"=>Set{Int}(),
- 	"targeting"=>Set{Int}(),"jumped"=>Set{Int}(),
- 	"benichou"=>Set{Int}(true)]
+ 	"targeting"=>Set{Int}(),"jumped"=>Set{Int}()]
 
+ #Flags: Switches that control the behaviour of the simulation
+ # benichou: can detect fish only at rest
+ # rtree: Use r-tree to find nearest neighbor among fish
+ FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true]
+
+ #==== Fishtree =====#
+ #One tree per school
+ fishtree=Fishtree([fnc_makefishtree(i,school,fish) for i=1:PS_n] )
  
- 
- args=[school,fish,cons,FLAGS] # arguments of most functions
+ args=[school,fish,cons,fishtree,EVENTS,FLAGS] # arguments of most functions
  turns=0
  while whilecond(fish,cons,dTs)
  	turns+=1
@@ -72,7 +76,7 @@ function make_season(school,fish,cons,ST,stopflag=2)
  
 	if stopflag==2
 		## Estimate expected time searching for a school
-		fnc_tau(dTs,cons,FLAGS);
+		fnc_tau(dTs,cons,EVENTS);
 	end
 	
  	## Save
