@@ -1,6 +1,7 @@
 module Types
+using PyCall
 
-export School, Fish, Fishers, Output
+export School, Fish, Fishers, Fishtree, Output
 
 #### Define Fish type
 type Fish
@@ -37,6 +38,10 @@ type Output
     cons_xy::Array{Float64}
     schl_xy::Array{Float64}
     cons_H::Array{Float64}
+end
+
+type Fishtree
+    trees::Array{PyObject}
 end
 
 end

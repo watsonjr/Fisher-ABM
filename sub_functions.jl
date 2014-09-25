@@ -6,14 +6,14 @@
 #! and estimate the running mean time between schools
 #! and estimate the difference in this running mean 
 #! which is the switch for the while loop
-function fnc_tau(dTs,cons,FLAGS)
+function fnc_tau(dTs,cons,EVENTS)
 	Ts,Tv,ts,ns=cons.Ts,cons.Tv,cons.ts,cons.ns
 	#H=cons.H;Ts=cons.Ts;ts=cons.ts;sn=cons.sn;
 	for I = 1:PC_n
 		# if you caught fish
 		# and the cumulative haul time (ts) is large 
 		# then you've encountered a new school
-		if in(I,FLAGS["captor"])
+		if in(I,EVENTS["captor"])
 			if ts[I] > (10*PF_sig/PC_v) 
 				ns[I] += 1; # update school counter
 				Ts_old = Ts[I]; # current mean
@@ -34,19 +34,39 @@ function fnc_tau(dTs,cons,FLAGS)
 	#return Ts,Tv,ts,ns,dTs
 end
 
+#### MAKE FISHTREE
+#! Everytime a school jumps, or at initalization
+#! create the corresponding tree
+function fnc_makefishtree(i,school,fish)
+	tree=pyrtree.Index()
+	#if !FLAGS["rtree"]
+		#Don't lose time initializing it without using it
+		#return tree
+	#end
+	
+	for f = school.fish[:,i] #for all fish in the school
+		fx=fish.fx[f,:]
+		tree[:insert](f,hcat(fx,fx+PC_h )') 
+		#insert an element to the tree that has the index f of the fish as label
+		#and the position of the fish as a location (rtrees require quadrangles so
+		#the position is doubled)
+	end
+	return tree
+end
+
 
 #### FISH FINDER / DISTANCE
 #!calculate distances between fish and fishermen? + search/steam switch
 #! Returns Dx, the x-distances between fish and fishermen; Dy, y-distances;
 #! D the Euclidean distances, MI which is a indicator for search steam switch (???)
-function fnc_fishfinder(grd,PC_f,school,fish,cons,FLAGS)
-	Fx,Sx,Si,Cx,fish_per_school=fish.fx,school.x,fish.fs,cons.x,school.fish
+function fnc_fishfinder(grd,PC_f,school,fish,cons,fishtree,EVENTS,FLAGS)
+	Fx,Sx,Si,Cx=fish.fx,school.x,fish.fs,cons.x
 	# First, find fishers that are likely near fish
 	# by gauging distance to all school centres
 	II = cell(PC_n); # index of schools each fisher is near
 	for i = 1:PC_n
 		II[i] =[]
-		if in(true,FLAGS["benichou"]) &&   cons.MI[i]!=1 #! ( cons.MI[i]=1 ||cons.Ni[i]==0 || isnan(fish.fx[cons.Ni[i]]) )
+		if FLAGS["benichou"] &&   cons.MI[i]!=1 #! ( cons.MI[i]=1 ||cons.Ni[i]==0 || isnan(fish.fx[cons.Ni[i]]) )
 			continue
 		end
 		for j=1:PS_n
@@ -57,7 +77,7 @@ function fnc_fishfinder(grd,PC_f,school,fish,cons,FLAGS)
 		end
 	end
 
-	empty!(FLAGS["new_neighbor"])
+	empty!(EVENTS["new_neighbor"])
 	# Output - index of nearest fish for all fishers (if any)
 	Ni = cons.Ni;
 	# find for each fisher
@@ -69,18 +89,29 @@ function fnc_fishfinder(grd,PC_f,school,fish,cons,FLAGS)
 			newk=0
 			Dmin=NaN #minimal distance to another fish
 			for j = 1:length(II[i])
-				for k = fish_per_school[:,II[i][j]]
-					D=hypot( (Cx[i,:]-Fx[k,:] )%(GRD_mx2)...)
-					if D<PC_f && (isnan(Dmin) || D<Dmin)
-						newk=k
+				#Find nearest neighbor in school j
+				if FLAGS["rtree"]
+					k=fishtree.trees[j][:nearest]( hcat(Cx[i,:],Cx[i,:] )' )[:next]()
+					D=hypot((Cx[i,:]-Fx[k,:])%(GRD_mx2)...)
+					if D<PC_f
 						Dmin=D
+						newk=k
+					end
+					treek=newk
+				else
+					for k = school.fish[:,II[i][j]]
+						D=hypot( (Cx[i,:]-Fx[k,:] )%(GRD_mx2)...)
+						if D<PC_f && (isnan(Dmin) || D<Dmin)
+							newk=k
+							Dmin=D
+						end
 					end
 				end
 			end
 			if newk!=Ni[i]
 				Ni[i]=newk
 				if newk!=0
-					push!(FLAGS["new_neighbor"],i)
+					push!(EVENTS["new_neighbor"],i)
 				end
 			end
 		else 
@@ -115,7 +146,7 @@ end
 #! that is, is a fisher can't see any fish
 #! they can either spin around or move in a straightish line
 #! they switch between this probabilistically
-function fnc_steam(school,fish,cons,FLAGS)
+function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
 	MI=cons.MI
 	for i = 1:PC_n
 		if MI[i] == 1 # if steaming
@@ -136,10 +167,10 @@ end
 #! Iterates through social network adjacency matrix, generates 2 random numbers.
 #! If random numbers are less than adjacency measure (friendship) they both
 #! contact; else both do not contact. Return the network 2D array.
-function fnc_contact(school,fish,cons,FLAGS)
+function fnc_contact(school,fish,cons,fishtree,EVENTS,FLAGS)
 	SN=cons.SN
 	CN = zeros(Int,PC_n,PC_n)
-	probing= FLAGS["new_neighbor"]  #ask to any friend who has a new neighbor
+	probing= EVENTS["new_neighbor"]  #ask to any friend who has a new neighbor
 	#if !isempty(probing)
 	#	print(probing)
 	#end
@@ -171,7 +202,7 @@ end
 #! or from random motion, knowing average proba of finding school)
 #! Two parameters: memory, allowing to integrate a signal from the
 #! same source over time; knowledge of terrain
-function fnc_decision(source,target,school,fish,cons,FLAGS)
+function fnc_decision(source,target,school,fish,cons,fishtree,EVENTS,FLAGS)
 	return 1
 end
 
@@ -181,7 +212,7 @@ end
 #! Otherwise roam around randomly according to a self-correlated walk that 
 #! approximates search behavior according to a Levy walk
 #! Return the minimum distance, updated heading, JJ index of nearest fish
-function fnc_information(CN,school,fish,cons,FLAGS)
+function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
 	#In this function we manage targeting events
 	
 	dxy,Ni,Fx,Cx,MI=cons.DXY,cons.Ni,fish.fx,cons.x,cons.MI
@@ -192,18 +223,18 @@ function fnc_information(CN,school,fish,cons,FLAGS)
 
 	#Fishers for whom previous target has been canceled:
 	#fish captured or part of school that jumped
-	for id=FLAGS["targeting"]
+	for id=EVENTS["targeting"]
 		tgt=cons.target[id]
-		if in(tgt, FLAGS["captured"]) || in(fish.fs[tgt], FLAGS["jumped"]) 
+		if in(tgt, EVENTS["captured"]) || in(fish.fs[tgt], EVENTS["jumped"]) 
 			cons.Dmin[id]=NaN
 			cons.target[id]=0
-			delete!(FLAGS["targeting"],id)
-			V[id]=PC_v
+			delete!(EVENTS["targeting"],id)
+			V[id]=PC_v #Restore speed to normal value
 		end
 	end
 	
 	for id = 1:PC_n
-		#if in(true,FLAGS["benichou"])& MI[id] == 0
+		#if FLAGS["benichou"]& MI[id] == 0
 		#	continue
 		#end
 		# get the vector of people with whom you are currently in contact
@@ -234,17 +265,16 @@ function fnc_information(CN,school,fish,cons,FLAGS)
 
 			# calculate unit vector DXY to nearest fish
 			Dxy = [Dx[ii] Dy[ii]] ./ norm([Dx[ii] Dy[ii]]); 
-
-			push!(FLAGS["targeting"],id)
+			push!(EVENTS["targeting"],id)
 			cons.target[id]=jj
 				
-		elseif  in(id,FLAGS["targeting"]) && !isnan(current) #Stay with current target
+		elseif  in(id,EVENTS["targeting"]) && !isnan(current) #Stay with current target
 			#print( id," ",current," ", Dmin,"\n")
 			Dxy=cons.DXY[id,:]
 			Dmin=cons.Dmin[id]
 		else # else I roam around randomly 
 			cons.target[id]=0
-			delete!(FLAGS["targeting"],id)
+			delete!(EVENTS["targeting"],id)
 
 			#Steam or search pattern
 			if MI[id] == 0 # # steam
@@ -280,29 +310,38 @@ end
 
 
 #### HARVEST for a season
-function fnc_harvest(school,fish,cons,FLAGS);
-	empty!(FLAGS["captor"]) #In this function we manage capture events
-	empty!(FLAGS["captured"])
+function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
+	empty!(EVENTS["captor"]) #In this function we manage capture events
+	empty!(EVENTS["captured"])
 	
 	CH,FX,TGT,DMIN=cons.H,fish.fx,cons.target,cons.Dmin
 	
 	#For all fishers that have a target
 	nbcaptors=zeros(PC_n)
-	for i = FLAGS["targeting"]
+	for i = EVENTS["targeting"]
 		if cons.Dmin[i]<PC_h #If the target is within harvesting distance
+			tgt=TGT[i]
+			fx=FX[tgt,:] #position of the target
+			if isnan(fx[1]) #if the same fish was captured by someone else
+				continue
+			end
 			cons.V[i]=0 #The boat stops moving until it catches the fish
 			# probabilistic catch
 			r =rand()
 			if r < PC_q
-				push!(FLAGS["captured"],TGT[i])
-				FX[TGT[i],:]=NaN; #Fish disappears
-				push!(FLAGS["captor"],i)
+				push!(EVENTS["captured"],tgt)
+				if FLAGS["rtree"]
+					#Fish is removed from the tree
+					fishtree.trees[fish.fs[tgt] ][:delete](tgt,hcat(fx,fx+PC_h )') 
+				end
+				FX[tgt,:]=NaN; #Fish disappears
+				push!(EVENTS["captor"],i)
 				nbcaptors[i]+=1
 				cons.V[i] = PC_v
 			end
 		end
 	end
-	for i=FLAGS["captor"]
+	for i=EVENTS["captor"]
 		CH[i] += 1./nbcaptors[i]; #Fisher gets proportion of fish
 	end
 end
@@ -330,11 +369,11 @@ end =#
 #! Randomly move the fish schools. 
 #! Return the locations of the fish, school locations,
 #! updated fisher locations
-function fnc_move(school,fish,cons,FLAGS)
+function fnc_move(school,fish,cons,fishtree,EVENTS,FLAGS)
 	#CL=school.x;FX=fish.fx;FS=fish.fs;CC=cons.x;Dm=cons.Dmin;DXY=cons.DXY;
 	CL,FX,CC,Dm,DXY,V=school.x,fish.fx,cons.x,cons.Dmin,cons.DXY,cons.V
 	# schools and fish move
-	empty!(FLAGS["jumped"])
+	empty!(EVENTS["jumped"])
 	for i = 1:PS_n
 		j = school.fish[:,i];
 		k = FX[j,1];
@@ -346,7 +385,10 @@ function fnc_move(school,fish,cons,FLAGS)
 			F_y  = mod(CL_y.+(randn(PF_n,1)*PF_sig),GRD_mx);
 			CL[i,:] = [CL_x CL_y];
 			FX[j,:] = [F_x F_y];
-			push!(FLAGS["jumped"],i);
+			push!(EVENTS["jumped"],i);
+			if FLAGS["rtree"]
+				fishtree.trees[i]=fnc_makefishtree(i,school,fish)
+			end
 		end
 	end
 
@@ -363,7 +405,7 @@ function fnc_move(school,fish,cons,FLAGS)
  		cons.x[f,:] =[CC_x CC_y]
  	end
  	
- 	for f=FLAGS["targeting"]
+ 	for f=EVENTS["targeting"]
  		#reduce distance to target fish
  		cons.Dmin[f]-=cons.V[f]
  	end
