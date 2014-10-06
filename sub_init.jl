@@ -13,12 +13,12 @@ a = zeros(PS_n,PF_n);
 for i = 1:PS_n; a[i,:] = ones(PF_n) .* i; end
 fish_fs = a'[:]; # fish school index
 if PS_n==1
-	school_fish=cat(2,1:PF_n,1:PF_n ) #create false second school so that school_fish[:,1] refers to first school 
+    school_fish=cat(2,1:PF_n,1:PF_n ) #create false second school so that school_fish[:,1] refers to first school 
 else
-	school_fish=cat(2,[find(fish_fs.==school) for school=1:PS_n]...); #fishes in each school
+    school_fish=cat(2,[find(fish_fs.==school) for school=1:PS_n]...); #fishes in each school
 end
 for i = 1:PF_n*PS_n; fish_fx[i,:,1] = mod(school_xy[fish_fs[i],:,1] + 
-			randn(1,2).*PF_sig, [GRD_mx GRD_mx]); end
+            randn(1,2).*PF_sig, [GRD_mx GRD_mx]); end
 
 
 #### Initialize school
@@ -45,21 +45,23 @@ cons_dx  = DXY ./ sqrt(DXY[:,1].^2 + DXY[:,2].^2);
 cons_H   = zeros(Float64,PC_n); # catch at time t
 cons_s   = randn(PC_n);cons_s[cons_s.<0]=-1;cons_s[cons_s.>0]=1;cons_s=int(cons_s)
 cons_mi  = int(ones(PC_n));
-cons_Ts  = zeros(PC_n);
-cons_Tv  = zeros(PC_n);
-cons_ts  = zeros(PC_n);
-cons_ns  = zeros(PC_n);
 cons_sn  = ones(PC_n,PC_n) .*max( eps(),PC_lambda); 
 for j = 1:PC_n; cons_sn[j,j] = 1; end;
 cons_v   = ones(PC_n) .* PC_v;
 
+#All quantities that need to be measured during some simulations
+cons_measure = ["f1"=>zeros(Float64,PC_n), "f2"=>zeros(Float64,PC_n), 
+    "Ts"=>zeros(Float64,PC_n), "Tv"=>zeros(Float64,PC_n) ,
+    "ts"=>zeros(Float64,PC_n) , "ns"=>zeros(Float64,PC_n)  ]  
 
 ##### Initialize
 school = School(school_xy,school_fish,school_pop);
 fish = Fish(fish_fx,fish_fs);
 cons = Fishers(cons_xy,cons_Ni,cons_target,cons_Nd,cons_dx,
-			   cons_H,cons_s,cons_mi,cons_sn,cons_Ts,cons_Tv,
-			   cons_ts,cons_ns,cons_v)
+               cons_H,cons_s,cons_mi,cons_sn,cons_v,
+               cons_measure)
+               #cons_Ts,cons_Tv,
+               #cons_ts,cons_ns)
 OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
 
 
@@ -72,12 +74,13 @@ OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
  
  #Events for fish: captured
  #Events for fisher: captor, targeting (fish found but outside harvesting distance)
- #		new neighbor (located another fish), new target (changed targeted fish)
+ #        new neighbor (located another fish), new target (changed targeted fish)
  #Events for school: jumped
  EVENTS=(ASCIIString=>Set{Int})["captured"=>Set{Int}(), "captor"=>Set{Int}(),
- 	"new_target"=>Set{Int}(),"new_neighbor"=>Set{Int}(),
- 	"targeting"=>Set{Int}(),"jumped"=>Set{Int}(),"spying"=>Set{Int}(),
- 	"left_school"=>Set{Int}(),"found_school"=>Set{Int}()]
+     "new_target"=>Set{Int}(),"new_neighbor"=>Set{Int}(),
+     "targeting"=>Set{Int}(),"jumped"=>Set{Int}(),
+     "in_contact"=>Set{Int}(), "spying"=>Set{Int}(),
+     "left_school"=>Set{Int}(),"found_school"=>Set{Int}()]
 
 
 #Flags: Switches that control the behaviour of the simulation
@@ -86,7 +89,7 @@ OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
  # save: Print out positions of all fishers and fish to make movies
  # implicit_fish: instead of modelling discrete fish, schools are disks
  FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true,"save"=>false,
-    "spying"=>false,"implicit_fish"=>false]
+    "spying"=>false,"implicit_fish"=>true]
 
 
 #==== Fishtree =====#
@@ -96,7 +99,7 @@ OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
 
 interfish=(1./(PF_n/PF_sig^2 *PC_h ) )
 if interfish> PC_f
-	println("Alert: Fishfinder radius: $PC_f ; Interfish distance: $interfish ")
+    println("Alert: Fishfinder radius: $PC_f ; Interfish distance: $interfish ")
 end
 
 return school,fish,cons,fishtree,EVENTS,FLAGS,OUT

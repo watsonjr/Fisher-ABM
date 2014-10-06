@@ -1,4 +1,177 @@
 
+
+##########################!!!!! SIMULATION EXPERIMENTS !!!!!!!!################
+
+
+##################### BASIC TESTS
+    
+function do_timingtest()
+    global PC_rp = 0.92; # choose random change in walk
+    school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+    @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+    npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
+    npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
+    npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
+    npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+end
+
+
+##################### 1 SCHOOl 1 FISHER
+    
+function do_first_passage()
+    ###### FIRST PASSAGE time (stop as soon as a school is found)
+    println("First passage time")
+    RP = linspace(0.1,.95,20);
+    Ts = cell(size(RP));
+    global PS_p=0.0
+    for i = 1:length(RP)
+        global PC_rp = RP[i];
+        time=[]
+        for iter in 1:300
+            school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+            time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS,3) ) ;
+        end
+        Ts[i] = mean(time),std(time);#cons.measure["Ts"], cons.measure["Tv"];
+        print(i,"\n")
+    end
+
+    TS = zeros(Float64,size(RP,1),PC_n)
+    for i = 1:length(RP)
+        TS[i,:] = Ts[i][1]
+    end
+    npzwrite("./Data/Data_firstpass.npy", TS)
+    npzwrite("./Data/Data_firstpass_xs.npy", RP)
+end
+
+function do_fig2a()
+    ######  TYPICAL SEARCH time over many searches
+    println("Typical search time")
+    RP = linspace(0.2,.9,20);
+    result = cell(size(RP));
+
+    for i = 1:length(RP)
+        global PC_rp = RP[i];
+        school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+        #FLAGS["spying"]=true
+        make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+        result[i] = cons.measure["Ts"], cons.measure["Tv"],cons.measure["f1"];
+        print(i,"\n")
+    end
+
+    TS = zeros(Float64,size(RP,1),PC_n)
+    F1 = zeros(Float64,size(RP,1),PC_n)
+    for i = 1:length(RP)
+        TS[i,:] = result[i][1]
+        F1[i,:] = result[i][3]
+    end
+    npzwrite("./Data/Data_Fig2a.npy", TS)
+    npzwrite("./Data/Data_Fig2a_f1.npy", F1)
+    npzwrite("./Data/Data_Fig2a_xs.npy", RP)
+end
+
+function do_fig2b()
+    ###### Test performance as a function of C_f and F_sig
+    SIG = linspace(1,GRD_mx/10,30);
+    FF  = linspace(1,GRD_mx/10,30);
+    Ts = cell(size(SIG,1),size(FF,1));
+    for i = 1:length(SIG)
+        for j = 1:length(FF)
+            global PF_sig = SIG[i];
+            global PC_f   = FF[j];
+            global PC_rp = fnc_optimal_PCrp();
+            print(i," ",j,"\n")
+            school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+            make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+            Ts[i,j] =[SIG[i],FF[j]], cons.measure["Ts"], cons.measure["Tv"],PC_rp;
+        end
+    end
+    TS = zeros(Float64,size(SIG,1),size(FF,1),PC_n)
+    xs = zeros(Float64,size(SIG,1),size(FF,1),2)
+    for i = 1:size(TS,1)
+        for j=1:size(TS,2)
+            TS[i,j,:] = Ts[i,j][2]
+            xs[i,j,:]=Ts[i,j][1]
+        end
+    end
+    npzwrite("./Data/Data_Fig2b.npy", TS)
+    npzwrite("./Data/Data_Fig2b_xs.npy", xs)
+end
+
+
+##################### 1 SCHOOL 2 FISHERS
+######## Test effect of friendship, on Tau_s and CPUE, as Tau_l is varied
+
+function do_fig3()
+    ###### Test performance as a function of tau_l and tau_h
+    ## basic values of C_f and F_sig
+    global PC_f=GRD_nx*0.05
+    global PF_sig=GRD_nx*0.05
+    
+    JUMP = logspace(log10(0.001),log10(.1),6);
+    CATCH  = logspace(log10(0.01),log10(1),6);
+    Ts = cell(size(JUMP,1),size(CATCH,1));
+    for i = 1:length(JUMP)
+        for j = 1:length(CATCH)
+            global PS_p = JUMP[i];
+            global PC_q = CATCH[j];
+            global PC_rp = fnc_optimal_PCrp();
+            print("$i $j, $PS_p $PC_q \n")
+            
+            println("Without information")
+            #Without information
+            global PC_lambda=0;
+            school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+#            println(cons.SN)
+            make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+            result1=cons.measure["Ts"]
+
+            println("With full information")
+            #With information
+            global PC_lambda=1;
+            school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+#            println(cons.SN)
+            make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+            result2=cons.measure["Ts"]
+
+            Ts[i,j,:] = [PS_p,PC_q],result1,result2;
+        end
+    end
+    TS = zeros(Float64,size(JUMP,1),size(CATCH,1),PC_n)
+    TSinf = zeros(Float64,size(JUMP,1),size(CATCH,1),PC_n)
+    xs = zeros(Float64,size(JUMP,1),size(CATCH,1),2)
+    for i = 1:size(TS,1)
+        for j=1:size(TS,2)
+            TS[i,j,:] = Ts[i,j][2]
+            TSinf[i,j,:] = Ts[i,j][3]
+            xs[i,j,:]= Ts[i,j][1]
+        end
+    end
+    npzwrite("./Data/Data_Fig3_noinf.npy", TS)
+    npzwrite("./Data/Data_Fig3_inf.npy", TSinf)
+    npzwrite("./Data/Data_Fig3_xs.npy", xs)
+end
+
+
+######## Test effect of friendship, on Tau_s and CPUE, as F_n is varied
+
+##################### 1 FISH N FISHERS (do 5, 10, 20 fishers)
+######## Stupid Optimal Social Network test (just keep adding links)
+
+######## Evolving social network - find the ESS 
+
+
+
+
+
+
+
+
+######## END  #######
+
+
+
+
+
 ## simulate a simple scenario
 function sim_simple()
 sn = linspace(1e-6,1,10);   # types of prosociality

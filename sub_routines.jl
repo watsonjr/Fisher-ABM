@@ -10,7 +10,7 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2)
  #! stops when every fisherman has caught the # fish in the
  
  dTs = ones(PC_n);
- cond2=(fish,cons,dTs,EVENTS)->(maximum(dTs) > .001 || minimum(cons.ns) < 500)
+ cond2=(fish,cons,dTs,EVENTS)->(maximum(dTs) > .001 || minimum(cons.measure["ns"]) < 500)
  #! while difference in estimated Tau_s is greater that 0.1%
  #! and the minimum number of schools visited is <500 
  
@@ -51,10 +51,9 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2)
     #! update positions
     fnc_move(args...);
  
-    if stopflag==2
-        ## Estimate expected time searching for a school
-        fnc_tau(dTs,cons,EVENTS);
-    end
+
+    ## Estimate expected time searching for a school
+    fnc_tau(dTs,cons,EVENTS);
     
     ## Save
      if ST == 1
@@ -78,6 +77,8 @@ if ST == 1
     npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
     npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 end
+
+cons.measure["f1"]/=turns
 
 #return cons.Ts, cons.Tv # expectation and variance in time between schools
 return turns

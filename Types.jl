@@ -26,11 +26,13 @@ type Fishers
     S::Array{Int} # make(1)/break(-1) friendships
     MI::Array{Int} # index of steaming or searching
     SN::Array{Float64} # social network
-    Ts::Array{Float64} # running mean time between schools for each fisher
-    Tv::Array{Float64} # running variance time between schools for each fisher
-    ts::Array{Float64} # current time between schools for each fisher
-    ns::Array{Int} # number of schools visited
     V::Array{Float64} # speed
+    measure::Dict{ASCIIString,Array{Float64}} # every quantity (times, frequencies) we want to measure
+    #Ts::Array{Float64} # running mean time between schools for each fisher
+    #Tv::Array{Float64} # running variance time between schools for each fisher
+    #ts::Array{Float64} # current time between schools for each fisher
+    #ns::Array{Int} # number of schools visited
+
 end
 
 #### Output variable for plotting

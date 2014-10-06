@@ -22,7 +22,7 @@ global PF_n	 = 60 # number of fish per school
 global PF_sig = 5; # distance parameter (km)
 
 ##### Fisher parameters
-global PC_n   = 2; # number of fishers
+global PC_n   = 1; # number of fishers
 const PC_v   = 4; # max speed of fishers (km per time)
 const PC_h   = 1; # distance at which fishers can catch fish (km)
 #const PC_r   = .25; # correlated random walk angle (drunk ballistic)
