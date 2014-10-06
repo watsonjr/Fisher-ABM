@@ -15,21 +15,21 @@ const GRD_x  = [0:GRD_dx:GRD_mx];
 
 ##### School parameters
 const PS_n   = 1 # number of schools
-const PS_p   = 0.001; # probability school will move (#do I need this)
+global PS_p   = 0.001; # probability school will move (#do I need this)
 
 #### Fish parameters
-const PF_n	 = 60 # number of fish per school
-const PF_sig = 4; # distance parameter (km)
+global PF_n	 = 60 # number of fish per school
+global PF_sig = 5; # distance parameter (km)
 
 ##### Fisher parameters
-const PC_n   = 2; # number of fishers
-const PC_v   = 2.6; # max speed of fishers (km per time)
+global PC_n   = 2; # number of fishers
+const PC_v   = 4; # max speed of fishers (km per time)
 const PC_h   = 1; # distance at which fishers can catch fish (km)
 #const PC_r   = .25; # correlated random walk angle (drunk ballistic)
-const PC_rp  = 0.99; # choose random change in walk (#previously: probability of r1->r2 (r2->r1 = 1-PC_rp))
-const PC_f   = 10.; # radius of fish finder (x grid cells; km)
-const PC_q	 = 1.; # prob of catching fish
-const PC_lambda = 0.; #default weight in the social networkx
-
+global PC_rp  = 0.99; # choose random change in walk (#previously: probability of r1->r2 (r2->r1 = 1-PC_rp))
+global PC_f   = 5.; # radius of fish finder (x grid cells; km)
+global PC_q	 = 1.; # prob of catching fish
+global PC_lambda = 1.; #default weight in the social networkx
+const PC_spy = GRD_mx; #Spying distance (important to value (infinite-distance) sharing over mutual spying)
 
 end

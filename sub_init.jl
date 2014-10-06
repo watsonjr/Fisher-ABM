@@ -1,6 +1,5 @@
 ###### PRAMETERS / CONSTANTS for running the model to equilibrium
 function init_equilibrium()
-
 #### Initialize fish
 #! all we need are fish location (x,y)
 #! the school location (x,y)
@@ -23,7 +22,8 @@ for i = 1:PF_n*PS_n; fish_fx[i,:,1] = mod(school_xy[fish_fs[i],:,1] +
 
 
 #### Initialize school
-
+#Partly done above
+school_pop=[PF_n for  school=1:PS_n]
 
 ##### Initialize fishers
 #! all we need are the locations of each fisher (x,y)
@@ -55,7 +55,7 @@ cons_v   = ones(PC_n) .* PC_v;
 
 
 ##### Initialize
-school = School(school_xy,school_fish);
+school = School(school_xy,school_fish,school_pop);
 fish = Fish(fish_fx,fish_fs);
 cons = Fishers(cons_xy,cons_Ni,cons_target,cons_Nd,cons_dx,
 			   cons_H,cons_s,cons_mi,cons_sn,cons_Ts,cons_Tv,
@@ -76,18 +76,28 @@ OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
  #Events for school: jumped
  EVENTS=(ASCIIString=>Set{Int})["captured"=>Set{Int}(), "captor"=>Set{Int}(),
  	"new_target"=>Set{Int}(),"new_neighbor"=>Set{Int}(),
- 	"targeting"=>Set{Int}(),"jumped"=>Set{Int}()]
+ 	"targeting"=>Set{Int}(),"jumped"=>Set{Int}(),"spying"=>Set{Int}(),
+ 	"left_school"=>Set{Int}(),"found_school"=>Set{Int}()]
 
 
 #Flags: Switches that control the behaviour of the simulation
  # benichou: can detect fish only at rest
  # rtree: Use r-tree to find nearest neighbor among fish
- FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true,"save"=>false]
+ # save: Print out positions of all fishers and fish to make movies
+ # implicit_fish: instead of modelling discrete fish, schools are disks
+ FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true,"save"=>false,
+    "spying"=>false,"implicit_fish"=>false]
 
 
 #==== Fishtree =====#
  #One tree per school
  fishtree=Fishtree([fnc_makefishtree(i,school,fish) for i=1:PS_n] )
+
+
+interfish=(1./(PF_n/PF_sig^2 *PC_h ) )
+if interfish> PC_f
+	println("Alert: Fishfinder radius: $PC_f ; Interfish distance: $interfish ")
+end
 
 return school,fish,cons,fishtree,EVENTS,FLAGS,OUT
 end
