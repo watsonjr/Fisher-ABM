@@ -1,23 +1,31 @@
-    
+
+
+
+
 #### Add modules
-using PyPlot, NPZ, Devectorize
-using Types, Constants
+#using PyPlot
+using Types#, Constants
+using NPZ, Devectorize
 using PyCall
 @pyimport rtree.index as pyrtree
 
+
+
 #### Add functions and routines
+include("Constants.jl");
 include("sub_init.jl");
 include("sub_functions.jl");
 include("sub_routines.jl");
 include("Experiments.jl");
 
 
+
 #### Switches for various experiments below
 timingtest=false
-firstpass=true
+firstpass=false
 fig2a=false
 fig2b=false
-fig3=false
+fig3=true
 
 
 

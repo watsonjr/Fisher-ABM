@@ -6,7 +6,8 @@
 ##################### BASIC TESTS
     
 function do_timingtest()
-    global PC_rp = 0.92; # choose random change in walk
+    println("Timing test")
+    PRM.PC_rp = 0.72; # choose random change in walk
     school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
     @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
     npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
@@ -23,9 +24,9 @@ function do_first_passage()
     println("First passage time")
     RP = linspace(0.1,.95,20);
     Ts = cell(size(RP));
-    global PS_p=0.0
+    PRM.PS_p=0.0
     for i = 1:length(RP)
-        global PC_rp = RP[i];
+        PRM.PC_rp = RP[i];
         time=[]
         for iter in 1:300
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
@@ -50,7 +51,7 @@ function do_fig2a()
     result = cell(size(RP));
 
     for i = 1:length(RP)
-        global PC_rp = RP[i];
+        PRM.PC_rp = RP[i];
         school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
         #FLAGS["spying"]=true
         make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
@@ -73,27 +74,30 @@ function do_fig2b()
     ###### Test performance as a function of C_f and F_sig
     SIG = linspace(1,GRD_mx/10,30);
     FF  = linspace(1,GRD_mx/10,30);
-    Ts = cell(size(SIG,1),size(FF,1));
+    result = cell(size(SIG,1),size(FF,1));
     for i = 1:length(SIG)
         for j = 1:length(FF)
-            global PF_sig = SIG[i];
-            global PC_f   = FF[j];
-            global PC_rp = fnc_optimal_PCrp();
+            PRM.PF_sig = SIG[i];
+            PRM.PC_f   = FF[j];
+            PRM.PC_rp = fnc_optimal_PCrp();
             print(i," ",j,"\n")
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            Ts[i,j] =[SIG[i],FF[j]], cons.measure["Ts"], cons.measure["Tv"],PC_rp;
+            result[i,j] =[SIG[i],FF[j]], cons.measure["Ts"], cons.measure["Tv"],PC_rp;
         end
     end
     TS = zeros(Float64,size(SIG,1),size(FF,1),PC_n)
+    F1 = zeros(Float64,size(SIG,1),size(FF,1),PC_n)
     xs = zeros(Float64,size(SIG,1),size(FF,1),2)
-    for i = 1:size(TS,1)
-        for j=1:size(TS,2)
-            TS[i,j,:] = Ts[i,j][2]
-            xs[i,j,:]=Ts[i,j][1]
+    for i = 1:size(result,1)
+        for j=1:size(result,2)
+            TS[i,j,:] = result[i,j][2]
+            xs[i,j,:]=result[i,j][1]
+            F1[i,j,:] = result[i,j][3]
         end
     end
     npzwrite("./Data/Data_Fig2b.npy", TS)
+    npzwrite("./Data/Data_Fig2b_f1.npy", TS)
     npzwrite("./Data/Data_Fig2b_xs.npy", xs)
 end
 
@@ -104,18 +108,20 @@ end
 function do_fig3()
     ###### Test performance as a function of tau_l and tau_h
     ## basic values of C_f and F_sig
-    global PC_f=GRD_nx*0.05
-    global PF_sig=GRD_nx*0.05
+    PRM.PC_f=PRM.GRD_nx*0.05
+    PRM.PF_sig=PRM.GRD_nx*0.05
     
-    JUMP = logspace(log10(0.001),log10(.1),6);
-    CATCH  = logspace(log10(0.01),log10(1),6);
-    Ts = cell(size(JUMP,1),size(CATCH,1));
+    JUMP = logspace(log10(0.001),log10(.1),4);
+    CATCH  = logspace(log10(0.01),log10(1),4);
+    result = cell(size(JUMP,1),size(CATCH,1));
+
     for i = 1:length(JUMP)
         for j = 1:length(CATCH)
-            global PS_p = JUMP[i];
-            global PC_q = CATCH[j];
-            global PC_rp = fnc_optimal_PCrp();
-            print("$i $j, $PS_p $PC_q \n")
+            PRM.PS_p = JUMP[i];
+            PRM.PC_q = CATCH[j];
+            PRM.PC_rp = fnc_optimal_PCrp();
+            PRM.PC_n = 2; #2 fishers!
+            print("$i $j \n")
             
             println("Without information")
             #Without information
@@ -123,7 +129,8 @@ function do_fig3()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result1=cons.measure["Ts"]
+            Ts=cons.measure["Ts"]
+            F1=cons.measure["f1"]
 
             println("With full information")
             #With information
@@ -131,23 +138,30 @@ function do_fig3()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result2=cons.measure["Ts"]
+            Tsinf=cons.measure["Ts"]
+            F1inf=cons.measure["f1"] 
 
-            Ts[i,j,:] = [PS_p,PC_q],result1,result2;
+            result[i,j,:] = [PS_p,PC_q],Ts,Tsinf,F1,F1inf;
         end
     end
     TS = zeros(Float64,size(JUMP,1),size(CATCH,1),PC_n)
     TSinf = zeros(Float64,size(JUMP,1),size(CATCH,1),PC_n)
+    F1 = zeros(Float64,size(JUMP,1),size(CATCH,1),PC_n)
+    F1inf = zeros(Float64,size(JUMP,1),size(CATCH,1),PC_n)
     xs = zeros(Float64,size(JUMP,1),size(CATCH,1),2)
-    for i = 1:size(TS,1)
-        for j=1:size(TS,2)
-            TS[i,j,:] = Ts[i,j][2]
-            TSinf[i,j,:] = Ts[i,j][3]
-            xs[i,j,:]= Ts[i,j][1]
+    for i = 1:size(result,1)
+        for j=1:size(result,2)
+            xs[i,j,:]= result[i,j][1]
+            TS[i,j,:] = result[i,j][2]
+            TSinf[i,j,:] = result[i,j][3]
+            F1[i,j,:] = result[i,j][4]
+            F1inf[i,j,:] = result[i,j][5]
         end
     end
     npzwrite("./Data/Data_Fig3_noinf.npy", TS)
     npzwrite("./Data/Data_Fig3_inf.npy", TSinf)
+    npzwrite("./Data/Data_Fig3_f1_noinf.npy", F1)
+    npzwrite("./Data/Data_Fig3_f1_inf.npy", F1inf)
     npzwrite("./Data/Data_Fig3_xs.npy", xs)
 end
 

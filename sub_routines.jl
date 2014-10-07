@@ -2,6 +2,8 @@
 #### Run a season
 function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2)
  
+ @set_constants PRM
+ #println("PC_rp")
  #! RUN
  #=== Possible loop conditions ==============#
  

@@ -1,3 +1,5 @@
+
+
 ###### PRAMETERS / CONSTANTS for running the model to equilibrium
 function init_equilibrium()
 #### Initialize fish
@@ -6,6 +8,8 @@ function init_equilibrium()
 #! the index of the school each fish is attached to (ind)
 #! the indices of the fish in each school
 #! and the KDTREE
+
+@set_constants PRM
 
 fish_fx = zeros(Float64,PF_n*PS_n,2); # location of fish
 school_xy=rand(Float64,PS_n,2).*repmat([GRD_mx GRD_mx],PS_n,1);
