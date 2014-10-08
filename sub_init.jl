@@ -54,7 +54,7 @@ for j = 1:PC_n; cons_sn[j,j] = 1; end;
 cons_v   = ones(PC_n) .* PC_v;
 
 #All quantities that need to be measured during some simulations
-cons_measure = ["f1"=>zeros(Float64,PC_n), "f2"=>zeros(Float64,PC_n), 
+cons_measure = ["f1"=>zeros(Float64,PC_n), "f2"=>zeros(Float64,PC_n), "fij"=>zeros(Float64,PC_n),
     "Ts"=>zeros(Float64,PC_n), "Tv"=>zeros(Float64,PC_n) ,
     "ts"=>zeros(Float64,PC_n) , "ns"=>zeros(Float64,PC_n)  ]  
 
@@ -93,17 +93,22 @@ OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
  # save: Print out positions of all fishers and fish to make movies
  # implicit_fish: instead of modelling discrete fish, schools are disks
  FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true,"save"=>false,
-    "spying"=>false,"implicit_fish"=>true]
+    "spying"=>false,"implicit_fish"=>true,"measure_frac"=>false]
 
 
 #==== Fishtree =====#
  #One tree per school
- fishtree=Fishtree([fnc_makefishtree(i,school,fish) for i=1:PS_n] )
-
+if FLAGS["rtree"] && !FLAGS["implicit_fish"]
+    fishtree=Fishtree([fnc_makefishtree(i,school,fish) for i=1:PS_n] )
+else
+    #fake fishtree when deactivated or not needed (no explicit fish)
+    fishtree = Fishtree([])
+end
 
 interfish=(1./(PF_n/PF_sig^2 *PC_h ) )
 if interfish> PC_f
-    println("Alert: Fishfinder radius: $PC_f ; Interfish distance: $interfish ")
+    ### Warning for extreme spread of school
+    println("Alert: Fishfinder radius: $PC_f < Interfish distance: $interfish ")
 end
 
 return school,fish,cons,fishtree,EVENTS,FLAGS,OUT

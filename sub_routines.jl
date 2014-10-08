@@ -56,7 +56,9 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2)
 
     ## Estimate expected time searching for a school
     fnc_tau(dTs,cons,EVENTS);
-    
+
+
+
     ## Save
      if ST == 1
          OUT.fish_xy = cat(3,OUT.fish_xy,fish.fx);
@@ -80,7 +82,11 @@ if ST == 1
     npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 end
 
-cons.measure["f1"]/=turns
+if FLAGS["measure_frac"]
+    cons.measure["f1"]/=turns
+    cons.measure["f2"]/=turns
+    cons.measure["fij"]/=turns
+end
 
 #return cons.Ts, cons.Tv # expectation and variance in time between schools
 return turns

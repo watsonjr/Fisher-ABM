@@ -357,7 +357,6 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             # get the vector of people with whom you are currently in contact
             J  = find(CN[id,:].==1); # index of friends
             Jn = length(J); # number of friends 
-
             # calculate distances to all targets you have info on
             DD = fill(NaN,Jn) # distance to your target and friend's
             Dx = fill(NaN,Jn) # dx
@@ -450,12 +449,31 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
     end
     
     Dmin=cons.Dmin
-    f1=cons.measure["f1"]
+    
+    schools=zeros(Int,PC_n)
+    if FLAGS["measure_frac"]
+        #Measure time spent in school
+        f1=cons.measure["f1"] #Time spent by 1 fisher in a school
+        f2=cons.measure["f2"] #Time spent by 2+ fishers in the same school
+        fij=cons.measure["fij"] #Time spent by 2 fishers within distance x
+    end
+
     #For all fishers who have a target
     for i = EVENTS["targeting"]
         if Dmin[i]<Dharvest #If the target is within harvesting distance
             tgt=TGT[i]
-            f1[i]+=1
+            
+            if FLAGS["measure_frac"]
+                #Add to time spent in school
+                f1[i]+=1
+                if FLAGS["implicit_fish"] #detect school
+                    sch= tgt
+                else
+                    sch=fish.fs[tgt]
+                end
+                schools[i]=sch
+            end
+            
             if FLAGS["implicit_fish"]
                 #If the school is a simple disk with a population variable
                 cons.V[i]=0
@@ -484,8 +502,28 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
             end
         end
     end
-    for i=EVENTS["captor"]
-        CH[i] += 1./nbcaptors[i]; #Fisher gets proportion of fish
+    if !FLAGS["implicit_fish"]
+        for i=EVENTS["captor"]
+            CH[i] += 1./nbcaptors[i]; #Fisher gets proportion of fish
+        end
+    end
+    
+    if FLAGS["measure_frac"] #Fraction of time spent by two fishers in the same school
+        #for i = EVENTS["targeting"]
+        #    if any(schools.==schools[i])
+        #        f2[i]+=1
+        #    end
+        #end
+        for i=1:PC_n
+            if schools[i]!=0 && any(schools.==schools[i])
+                f2[i]+=1
+            end
+            for j=1:PC_n
+                if i!=j && fnc_dist(cons.x[i,:],cons.x[j,:])<PC_f
+                    fij[i]+=1
+                end
+            end
+        end
     end
 end
 

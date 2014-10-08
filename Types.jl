@@ -1,4 +1,5 @@
 module Types
+
 using PyCall
 
 export School, Fish, Fishers, Fishtree, Output

@@ -39,6 +39,7 @@ end
 
 
 #### Experiments for benchmarks paper
+##(function definitions are in Experiments.jl)
 
 if firstpass
     do_first_passage()

@@ -292,11 +292,6 @@ if fig3bis:
     ax.set_zlim(bottom=min(T1-T2), top=max(T1-T2))
     ax.set_zlabel(r"$H^R - H^I$")
     plt.show()
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
-    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
     ax.scatter(X.ravel(),Y.ravel(),T1,c='r')
     ax.scatter(X.ravel(),Y.ravel(),T2,c='b')
     ax.set_zlabel(r"$H$")
