@@ -41,6 +41,7 @@ type Output
     fish_xy::Array{Float64}
     cons_xy::Array{Float64}
     schl_xy::Array{Float64}
+    schl_pop::Array{Float64}
     cons_H::Array{Float64}
 end
 

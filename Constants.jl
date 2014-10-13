@@ -11,22 +11,23 @@ GRD_mx2 = GRD_mx / 2 # half grid size (used in periodic bnd)
 GRD_x  = [0:GRD_dx:GRD_mx];
 
 ##### School parameters
-PS_n   = 1 # number of schools
-PS_p   = 0.001; # probability school will move (#do I need this)
+PS_n   = 4 # number of schools
+PS_p   = 0.00; # probability school will move (#do I need this)
 
 #### Fish parameters
-PF_n	 = 60 # number of fish per school
-PF_sig = 5; # distance parameter (km)
+PF_n	 = 10 # number of fish per school
+PF_sig = 25; # distance parameter (km)
 
 ##### Fisher parameters
-PC_n   = 1; # number of fishers
+PC_n   = 2; # number of fishers
 PC_v   = 4; # max speed of fishers (km per time)
 PC_h   = 1; # distance at which fishers can catch fish (km)
 #const PC_r   = .25; # correlated random walk angle (drunk ballistic)
 PC_rp  = 0.99; # choose random change in walk (#previously: probability of r1->r2 (r2->r1 = 1-PC_rp))
 PC_f   = 5.; # radius of fish finder (x grid cells; km)
-PC_q	 = 1.; # prob of catching fish
-PC_lambda = 1.; #default weight in the social networkx
+PC_q	 = 1.; # prob of catching fish/rate of depletion if implicit fish
+PC_lambda = 0.; #default weight in the social network
+PC_ncliq = 1; #number of cliques in the social network
 PC_spy = GRD_mx; #Spying distance (important to value (infinite-distance) sharing over mutual spying)
 
 
@@ -47,6 +48,7 @@ type Param
     PC_f::Float64
     PC_q::Float64
     PC_lambda::Float64
+    PC_ncliq::Int
     PC_spy::Float64
 end
 
@@ -54,7 +56,7 @@ end
 PRM=Param(
 GRD_nx, GRD_dx, GRD_mx, GRD_mx2, GRD_x, 
 PS_n, PS_p, PF_n, PF_sig,
- PC_n, PC_v, PC_h, PC_rp, PC_f,  PC_q, PC_lambda, PC_spy)
+ PC_n, PC_v, PC_h, PC_rp, PC_f,  PC_q, PC_lambda,PC_ncliq, PC_spy)
 
 
 
@@ -79,5 +81,15 @@ macro set_constants(struct)
     # now escape the evaled block so that the
     # new variable declarations get declared in the surrounding scope.
     return esc(:($block))
+end
+
+function save_parameters()
+    file=open("./Data/Data_params.dat","w")
+    for f in names(PRM)
+        #println( PRM.f)
+        test= eval(:(PRM.$f))
+        write(file, "$f  $test\n")
+    end
+    close(file)
 end
 #end

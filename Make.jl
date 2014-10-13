@@ -25,16 +25,16 @@ timingtest=false
 firstpass=false
 fig2a=false
 fig2b=false
-fig3=true
-
+fig3=false
+fig4opt=true
 
 
 #### Basic timing/profiling test for a single run
 
 if timingtest
-    #do_timingtest()
-    @profile do_timingtest()
-    Profile.print(format=:flat)
+    do_timingtest()
+    #@profile do_timingtest()
+    #Profile.print(format=:flat)
 end
 
 
@@ -52,9 +52,15 @@ end
 if fig2b
     do_fig2b()
 end
+
 if fig3
     do_fig3()
 end
+
+if fig4opt
+    do_fig4opt()
+end
+
 
 
 #################### OLDER EXPERIMENTS #############################

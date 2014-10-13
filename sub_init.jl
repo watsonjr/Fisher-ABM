@@ -54,9 +54,9 @@ for j = 1:PC_n; cons_sn[j,j] = 1; end;
 cons_v   = ones(PC_n) .* PC_v;
 
 #All quantities that need to be measured during some simulations
-cons_measure = ["f1"=>zeros(Float64,PC_n), "f2"=>zeros(Float64,PC_n), "fij"=>zeros(Float64,PC_n),
-    "Ts"=>zeros(Float64,PC_n), "Tv"=>zeros(Float64,PC_n) ,
-    "ts"=>zeros(Float64,PC_n) , "ns"=>zeros(Float64,PC_n)  ]  
+cons_measure = ["Ts"=>zeros(Float64,PC_n), "Tv"=>zeros(Float64,PC_n) ,
+    "ts"=>zeros(Float64,PC_n) , "ns"=>zeros(Float64,PC_n), 
+    "distance"=>zeros(Float64,PC_n) ]  
 
 ##### Initialize
 school = School(school_xy,school_fish,school_pop);
@@ -66,7 +66,7 @@ cons = Fishers(cons_xy,cons_Ni,cons_target,cons_Nd,cons_dx,
                cons_measure)
                #cons_Ts,cons_Tv,
                #cons_ts,cons_ns)
-OUT  = Output(fish_fx,cons_xy,school_xy,cons_H);
+OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H);
 
 
 
@@ -106,7 +106,7 @@ else
 end
 
 interfish=(1./(PF_n/PF_sig^2 *PC_h ) )
-if interfish> PC_f
+if !FLAGS["implicit_fish"] && interfish> PC_f
     ### Warning for extreme spread of school
     println("Alert: Fishfinder radius: $PC_f < Interfish distance: $interfish ")
 end

@@ -24,12 +24,15 @@ end
 
 #### Spatial difference and distance functions (Devectorized)
 function fnc_difference(pos1,pos2)
+    GRD_mx2= PRM.GRD_mx2
     dpos=pos1-pos2
     df=div(dpos,GRD_mx2)
-    return ((dpos)%GRD_mx2-df*GRD_mx2).*([1 1]-2*df)
+    #println("test",GRD_mx2," ",df, " ",((dpos)%GRD_mx2-df*GRD_mx2))
+    return ((dpos)%GRD_mx2-df*GRD_mx2)
 end
 
 function fnc_dist(pos1,pos2)
+    GRD_mx2= PRM.GRD_mx2
     dpos=pos1-pos2
     return hypot( (dpos)%GRD_mx2-div(dpos,GRD_mx2)*GRD_mx2... )
 end
@@ -41,13 +44,21 @@ end
 function fnc_optimal_PCrp()
     @set_constants PRM
     v=PC_v
-    a=PC_f+min(PF_sig,PF_n*PC_f/(2*pi) )
+    a=PC_f+PF_sig#min(PF_sig,PF_n*PC_f/(2*pi) )
     b=GRD_mx2
     tau2=(a/v * sqrt( log(b/a) -1./2.))
     return 1.-1./tau2
 end
 
 
+#### Get identity of school associated with a target
+function get_school(tgt,fish,FLAGS)
+    if FLAGS["implicit_fish"]
+        return tgt
+    else
+        return fish.fs[tgt]
+    end
+end
 
 ######## ABM MEASUREMENT FUNCTIONS ############################
 # Functions that are used in some simulations to measure some quantities 
@@ -57,7 +68,7 @@ end
 #! and estimate the running mean time between schools
 #! and estimate the difference in this running mean 
 #! which is the switch for the while loop
-function fnc_tau(dTs,cons,EVENTS)
+function fnc_tau(dTs,dHs,cons,EVENTS,FLAGS,turns)
     @set_constants PRM
     Ts,Tv,ts,ns=cons.measure["Ts"],cons.measure["Tv"],cons.measure["ts"],cons.measure["ns"]
     #H=cons.H;Ts=cons.Ts;ts=cons.ts;sn=cons.sn;
@@ -76,11 +87,17 @@ function fnc_tau(dTs,cons,EVENTS)
         
         dTs[I] = abs(Ts[I]-Ts_old)/Ts[I]; # fractional change in mean
         ts[I] = 1; # reset how long it took to find school
-        
+        if FLAGS["measure_frac"]
+            if cons.H[I]>1
+                dHs[I]=abs(((cons.H[I]/turns)/cons.measure["Hrate"][I])-1.)
+                cons.measure["Hrate"][I]=cons.H[I]/turns
+            end
+        end      
     end
     for I = 1:PC_n
         ts[I]+=1
     end
+
     return
 end
 
@@ -334,12 +351,7 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
     #fish captured or part of school that jumped
     for id=EVENTS["targeting"]
         tgt=cons.target[id]
-        if FLAGS["implicit_fish"]
-            school=tgt
-        else
-            school=fish.fs[tgt]
-        end
-        if in(tgt, EVENTS["captured"]) || in(tgt, EVENTS["jumped"]) 
+        if in(tgt, EVENTS["captured"]) || in(get_school(tgt,fish,FLAGS), EVENTS["jumped"]) 
             cons.Dmin[id]=NaN
             if tgt==cons.Ni[id]
                 cons.Ni[id]=0
@@ -392,7 +404,6 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             # if I see anything better than current target (if any)
             push!(EVENTS["targeting"],id)
             cons.target[id]=jj
-                
         elseif  in(id,EVENTS["targeting"]) && !isnan(current) 
             #Stay with current target
             Dxy=cons.DXY[id,:]
@@ -519,7 +530,7 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
                 f2[i]+=1
             end
             for j=1:PC_n
-                if i!=j && fnc_dist(cons.x[i,:],cons.x[j,:])<PC_f
+                if i!=j && fnc_dist(cons.x[i,:],cons.x[j,:])<PC_f+2*PF_sig
                     fij[i]+=1
                 end
             end
@@ -568,16 +579,27 @@ function fnc_move(school,fish,cons,fishtree,EVENTS,FLAGS)
     #range2 = PC_v - PC_vmn;
     #V = (v*range2) .+ PC_vmn;
 
-    for f=1:PC_n
-        CC_x = mod(CC[f,1] + (DXY[f,1]*V[f]), GRD_mx);
-         CC_y = mod(CC[f,2] + (DXY[f,2]*V[f]), GRD_mx);
-         cons.x[f,:] =[CC_x CC_y]
-     end
      
      for f=EVENTS["targeting"]
          #reduce distance to target
-         cons.Dmin[f]-=cons.V[f]
+         tgt=cons.target[f]
+         dx,dy=fnc_difference(school.x[tgt,:], cons.x[f,:])
+         dxy=[dx dy] ./ norm([dx dy])
+         if cons.Dmin[f]>cons.V[f]
+             cons.Dmin[f]-=cons.V[f]
+         else
+             cons.V[f]/=10
+             cons.Dmin[f]-=cons.V[f]
+         end
      end
+
+     for f=1:PC_n
+         CC_x = mod(CC[f,1] + (DXY[f,1]*V[f]), GRD_mx);
+         CC_y = mod(CC[f,2] + (DXY[f,2]*V[f]), GRD_mx);
+         cons.x[f,:] =[CC_x CC_y]
+         cons.measure["distance"][f]+=V[f]
+     end
+
     #return FX,CL,CC
 end
 

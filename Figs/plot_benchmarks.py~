@@ -7,25 +7,38 @@ from math import *
 
 #### SWITCHES FOR WHICH FIGURES TO PLOT ####
 
+firstpass=0
 fig2a=0
 fig2b=0
 fig3=1
 fig3bis=1 #Other quantities related to fig3
+fig4opt=0
 
 #=========== Extraction of constants from julia code ==================
 
-fcst=open("../Constants.jl","r")
-constants={}
-for l in fcst:
-    line=l.split()
-    if len(line)>1 and "=" in line[1]:
-        try:
-            constants[line[0]]=eval(line[2].replace(';',''))
-        except Exception as e:
-            print e
-
-GRD_mx = constants["GRD_nx"]*constants["GRD_dx"]
-
+if 0:
+    ####OLD
+    fcst=open("../Constants.jl","r")
+    constants={}
+    for l in fcst:
+        line=l.split()
+        if len(line)>1 and "=" in line[1]:
+            try:
+                constants[line[0]]=eval(line[2].replace(';',''))
+            except Exception as e:
+                print e
+    GRD_mx = constants["GRD_nx"]*constants["GRD_dx"]
+    fcst.close()
+else:
+    fcst=open("../Data/Data_params.dat","r")
+    constants={
+    for l in fcst:
+        line=l.split()
+        if len(line)>1:
+            exec("{} = {}".format(line[0],line[1]))
+            exec("constants['{}'] = {}".format(line[0],line[1]))
+    fcst.close()
+            
 
 def get_constants(**kwargs):
     args=[ kwargs[i] if i in kwargs else constants[i] for i in 
@@ -112,8 +125,12 @@ def tausr(*args):
 
 def f1r(*args):
     tt= tausr1b(*args)
-    PS_p=args[-1]
-    t0= 1./PS_p #average time between jumps
+    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p=args
+    tl= 1./PS_p #average time between jumps
+    th= PF_n/PC_q
+    if th<tl:
+        print("quick harvest")
+    t0=min(tl,th)
     #return 1 + (exp(-t0/tt)-1)/(t0/tt)
     return (1- log( 1 + t0/tt) / (t0/tt))
 
@@ -125,7 +142,7 @@ def f1r(*args):
 
 #=========== FIGURES ==================
 
-if fig2a:
+if firstpass:
     #=========== FIGURE 2A ==================
 
     ## Load in data
@@ -145,7 +162,7 @@ if fig2a:
     TS = np.load("../Data/Data_Fig2a.npy")
     F1 = np.load("../Data/Data_Fig2a_f1.npy")
     xs = np.load("../Data/Data_Fig2a_xs.npy")
-    #print(TS)
+    print(TS)
     plt.plot(xs,TS)
     plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs])
     plt.show()
@@ -292,6 +309,11 @@ if fig3bis:
     ax.set_zlim(bottom=min(T1-T2), top=max(T1-T2))
     ax.set_zlabel(r"$H^R - H^I$")
     plt.show()
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
+    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
     ax.scatter(X.ravel(),Y.ravel(),T1,c='r')
     ax.scatter(X.ravel(),Y.ravel(),T2,c='b')
     ax.set_zlabel(r"$H$")
@@ -320,4 +342,15 @@ if fig3bis:
     ax.set_zlabel(r"$f_{ij}$")
     plt.show()
     
+
+
+if fig4opt:
+    #=========== FIGURE 4 - OPTIMIZATION ==================
+
+    ## Load in data
+    TS = np.load("../Data/Data_Fig4opt.npy")
+    xs = np.load("../Data/Data_Fig4opt_xs.npy")
+    #xs=range(2,11)
+    plt.plot(xs,TS)
+    plt.show()
 

@@ -3,14 +3,33 @@ import matplotlib.pyplot as plt
 from subprocess import call
 import os
 
+#ffmpeg -r 18  -i Fig_%05d.jpg test1800.mp4
+imgformat='jpg'
+
+
 ## Remove old figs
-os.system("rm -f ./Movie/*.png")
+os.system("rm -f ./Movie/*.{}".format(imgformat) )
 
 ## Load in data
 Fish = np.load("../Data/Data_fish.npy")
 Cons = np.load("../Data/Data_fishers.npy")
 Clus = np.load("../Data/Data_clusters.npy")
+Pop = np.load("../Data/Data_cluspop.npy")
 Harv = np.load("../Data/Data_harvest.npy")
+
+implicit_fish=True
+
+#GET PARAMETER VALUES
+fcst=open("../Data/Data_params.dat","r")
+for l in fcst:
+    line=l.split()
+    if len(line)>1:
+        exec("{} = {}".format(line[0],line[1]))
+fcst.close()
+
+#Size conversion (data to figure size)
+def convert_dist(ax,d):
+    return float(d)/GRD_mx* ( ax.transData.transform((0,GRD_mx ) )-ax.transData.transform((0,0) ) )[1]
 
 ## plot
 
@@ -23,17 +42,24 @@ for i in np.arange(0,Fish.shape[2]):
     xl  = Clus[:,0,i];
     yl  = Clus[:,1,i];
 
-    fig = plt.figure(1, figsize=(10, 8),edgecolor=[.4,.4,.4]);
-    plt.plot(x,y,'o',alpha=0.5,mec='none',color=[.3,.3,1.],ms=9);
-    plt.plot(xc,yc,'o',alpha=1,mec='none',color=[1,0,0],ms=9);
-    plt.plot(xl,yl,'^',alpha=1,mec='none',color=[0,1,0],ms=9);
-    plt.axis([0,100,0,100])
+    fig = plt.figure( edgecolor=[.4,.4,.4]);
+    ax = fig.add_subplot(111)
+    ax.set(aspect=1)
+    plt.axis([0,GRD_mx,0,GRD_mx])
+    
+    if not implicit_fish:
+        plt.plot(x,y,'o',alpha=0.5,mec='none',color=[.3,.3,1.],ms=9);
+        plt.plot(xl,yl,'^',alpha=1,mec='none',color=[0,1,0],ms=9);
+    else:
+        plt.scatter(xl,yl,s=3.14*convert_dist(ax,PF_sig)**2* Pop[:,i]/PF_n,alpha=.4 );
+    plt.scatter(xc,yc,alpha=.3,color=[1,0,0],s=3.14*convert_dist(ax,PC_f)**2);
+    plt.scatter(xc,yc,alpha=1,c=[[1,(ca%PF_n)/PF_n,(ca%PF_n)/PF_n] for ca in Harv[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
     plt.xticks([]);
     plt.yticks([]);
 
     # save
     ti = str(i+100000)
-    plt.savefig('./Movie/Fig_' +ti[1:] +'.png',dpi=100,bbox_inches='tight')
+    plt.savefig('./Movie/Fig_' +ti[1:] +'.{}'.format(imgformat),dpi=100,bbox_inches='tight')
     print(i)
     plt.close('all')
 

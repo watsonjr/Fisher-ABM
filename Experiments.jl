@@ -9,11 +9,12 @@ function do_timingtest()
     println("Timing test")
     PRM.PC_rp = 0.72; # choose random change in walk
     school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
-    @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-    npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
-    npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
-    npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
-    npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+    FLAGS["save"]=true
+    @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1,OUT);
+    #npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
+    #npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
+    #npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
+    #npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
 end
 
 
@@ -30,7 +31,7 @@ function do_first_passage()
         time=[]
         for iter in 1:300
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
-            time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS,3) ) ;
+            time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS,4) ) ;
         end
         Ts[i] = mean(time),std(time);#cons.measure["Ts"], cons.measure["Tv"];
         print(i,"\n")
@@ -110,6 +111,7 @@ function do_fig3()
     ## basic values of C_f and F_sig
     PRM.PC_f=PRM.GRD_nx*0.05
     PRM.PF_sig=PRM.GRD_nx*0.05
+    PRM.PC_n = 2; #2 fishers!
     
     JUMP = logspace(log10(0.001),log10(.1),32);
     CATCH  = logspace(log10(0.01),log10(1),32);
@@ -120,7 +122,6 @@ function do_fig3()
             PRM.PS_p = JUMP[i];
             PRM.PC_q = CATCH[j];
             PRM.PC_rp = fnc_optimal_PCrp();
-            PRM.PC_n = 2; #2 fishers!
             print("$i $j \n")
             
             println("Without information")
@@ -131,7 +132,7 @@ function do_fig3()
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            res =[PRM.PS_p,PRM.PC_q],cons.measure["Ts"],cons.measure["f1"],cons.H,cons.measure["fij"] ;
+            res =[PRM.PS_p,PRM.PC_q],cons.measure["Ts"],cons.measure["f1"],cons.measure["fij"],cons.measure["H"];
 
             println("With full information")
             #With information
@@ -144,7 +145,7 @@ function do_fig3()
             Tsinf=cons.measure["Ts"]
             F1inf=cons.measure["f1"] 
 
-            result[i,j,:] =tuple(res..., (cons.measure["Ts"],cons.measure["f1"],cons.H,cons.measure["fij"])...)
+            result[i,j,:] =tuple(res..., (cons.measure["Ts"],cons.measure["f1"],cons.measure["fij"],cons.measure["H"])...)
 
         end
     end
@@ -162,14 +163,15 @@ function do_fig3()
             xs[i,j,:]= result[i,j][1]
             TS[i,j,:] = result[i,j][2]
             F1[i,j,:] = result[i,j][3]
-            Catch[i,j,:] = result[i,j][4]
-            Fij[i,j,:] = result[i,j][5]
+            Fij[i,j,:] = result[i,j][4]
+            Catch[i,j,:] = result[i,j][5]
             TSinf[i,j,:] = result[i,j][6]
             F1inf[i,j,:] = result[i,j][7]
-            Catchinf[i,j,:] = result[i,j][8]
-            Fijinf[i,j,:] = result[i,j][9]
+            Fijinf[i,j,:] = result[i,j][8]
+            Catchinf[i,j,:] = result[i,j][9]
         end
     end
+    npzwrite("./Data/Data_Fig3_xs.npy", xs)
     npzwrite("./Data/Data_Fig3_noinf.npy", TS)
     npzwrite("./Data/Data_Fig3_inf.npy", TSinf)
     npzwrite("./Data/Data_Fig3_f1_noinf.npy", F1)
@@ -178,9 +180,40 @@ function do_fig3()
     npzwrite("./Data/Data_Fig3_catch_inf.npy", Catchinf)
     npzwrite("./Data/Data_Fig3_fij_noinf.npy", Fij)
     npzwrite("./Data/Data_Fig3_fij_inf.npy", Fijinf)
-    npzwrite("./Data/Data_Fig3_xs.npy", xs)
 end
 
+
+function do_fig4opt()
+    println("Optimal lambda")
+    RP = linspace(0.,1.,20);
+    #RP = 2:10;
+    result = cell(size(RP));
+
+    PRM.PC_n = 2;
+    PRM.PC_f=PRM.GRD_nx*0.05
+    PRM.PF_sig=PRM.GRD_nx*0.05
+    PRM.PS_p = 0.001;
+    PRM.PC_q = 0.01;
+    PRM.PC_lambda = .5;
+    PRM.PC_rp = fnc_optimal_PCrp();
+    for i = 1:length(RP)
+        PRM.PC_lambda = RP[i];
+        #PRM.PC_n = RP[i];
+        school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+        FLAGS["measure_frac"]=true
+        make_season(school,fish,cons,fishtree,EVENTS,FLAGS,3);
+        result[i] = [cons.measure["Hrate"][1] cons.measure["Hdist"][1] cons.measure["f2"][1]];
+        println(i)
+    end
+
+    TS = zeros(Float64,size(RP,1),3)
+    for i = 1:length(RP)
+        TS[i,:] = result[i]
+    end
+    
+    npzwrite("./Data/Data_Fig4opt.npy", TS)
+    npzwrite("./Data/Data_Fig4opt_xs.npy", RP)
+end
 
 ######## Test effect of friendship, on Tau_s and CPUE, as F_n is varied
 
