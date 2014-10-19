@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 from subprocess import call
 import os
 
-#ffmpeg -r 18  -i Fig_%05d.jpg test1800.mp4
+
+
 imgformat='jpg'
+maxpic=500 #Maximum number of pictures made
 
 
 ## Remove old figs
@@ -33,7 +35,7 @@ def convert_dist(ax,d):
 
 ## plot
 
-for i in np.arange(0,Fish.shape[2]):
+for i in np.arange(0,min(maxpic,Fish.shape[2])):
 
     x   = Fish[:,0,i];
     y   = Fish[:,1,i];
@@ -63,4 +65,5 @@ for i in np.arange(0,Fish.shape[2]):
     print(i)
     plt.close('all')
 
+call("ffmpeg -r 18  -i Movie/Fig_%05d.{} movie.mp4".format(imgformat),shell=True)
 

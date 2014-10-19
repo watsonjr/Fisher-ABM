@@ -3,17 +3,21 @@ import scipy.special as SS
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from math import *
+import os
 
+
+
+path="../Data/"
 
 #### SWITCHES FOR WHICH FIGURES TO PLOT ####
 
 firstpass=0
-fig2a=0
-fig2b=0
-fig3=1
-fig3bis=1 #Other quantities related to fig3
+firstpass_ns=0
+fig2a=1
+fig2b=1
+fig3=0
+fig3bis=0 #Other quantities related to fig3
 fig4opt=0
-
 #=========== Extraction of constants from julia code ==================
 
 if 0:
@@ -29,35 +33,66 @@ if 0:
                 print e
     GRD_mx = constants["GRD_nx"]*constants["GRD_dx"]
     fcst.close()
-else:
-    fcst=open("../Data/Data_params.dat","r")
-    constants={}
+    
+constants={}
+def set_constants(filename):
+    if not ".dat" in filename:
+        filename=filename+".dat"
+    fcst=open(os.path.join(path,filename ),"r")
+    #constants={}
+    global constants
     for l in fcst:
         line=l.split()
+        if line and '#' in line[0]:
+            continue
         if len(line)>1:
             exec("{} = {}".format(line[0],line[1]))
             exec("constants['{}'] = {}".format(line[0],line[1]))
     fcst.close()
-            
+
+def load_data(filename):
+    if not ".npy" in filename:
+        filename=filename+".npy"
+    data= np.load(os.path.join(path,filename ))
+    #get headers
+    headers=[]
+    fcst=open(os.path.join(path,filename.replace("npy","dat" )),"r")
+    for l in fcst:
+        line=l.split()
+        if line and '#' in line[0]:
+            line=[x.strip().replace('#','') for x in line ]
+            headers=[ x for x in line if x]
+            break
+    datadict={}
+    dim=len(data.shape)
+    data=np.transpose(data,[dim-1]+range(dim)[:-1] ) #transpose to get dataset as first index
+    for i,h in enumerate(headers):
+        datadict[h]=data[i]
+    return datadict
+
+set_constants("Data_params")
 
 def get_constants(**kwargs):
     args=[ kwargs[i] if i in kwargs else constants[i] for i in 
-        ("PC_rp","PC_f","PC_q","PF_sig" ,"PF_n" ,"GRD_nx","GRD_dx","PC_v","PS_p")]
+        ("PC_rp","PC_f","PC_q","PF_sig" ,"PF_n" ,"GRD_nx","GRD_dx","PC_v","PS_p","PS_n")]
     return args
 
 #=========== Analytical expressions ==================
 
-def tausr_base(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p):
+def tausr_base(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
     v=PC_v
     a=(PC_f+PF_sig) #min(PF_sig,PF_n*PC_f/(2*pi) )  #This correction applies for explicit fish
-    b=GRD_nx*GRD_dx/2.
+    b=GRD_nx*GRD_dx/2.  /sqrt(PS_n)*(.5+sqrt(2)/2)  #Factor (1+sqrt(2))/2 to approximate circle domain->square domain effect
     t2=1./(1.-PC_rp) #avg time of straight flight (CHECKED NUMERICALLY)
     t1=1./(PC_rp) #avg time of wait (CHECKED NUMERICALLY)
-    t2opt= (a/v * sqrt( log(b/a) -1./2.))
+    if log(b/a)>.5:
+        t2opt= (a/v * sqrt( log(b/a)-1./2.))
+    else:
+        t2opt=0.0001
     popt=1/t2opt
     return v,a,b,t1,t2
     
-def p_opt(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p):
+def p_opt(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
     v=PC_v
     a=PC_f+min(PF_sig,PF_n*PC_f/(2*pi) )
     b=GRD_nx*GRD_dx/2.
@@ -68,7 +103,7 @@ def p_opt(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p):
     return popt
 
 def tausr1(*args):  #Static mode
-    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p=args
+    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p,PS_n=args
     v,a,b,t1,t2=tausr_base(*args)
     k=1./(1.-PC_q) #rate of catching, to specify better
     xy=sqrt( 2*k*t1/(1+k*t1) )/v/t2
@@ -80,8 +115,8 @@ def tausr1(*args):  #Static mode
     result4= (t1+t2)/(2*k*t1*b**2) * result3
     return result4
     
-def tausr1b(*args):  #Static mode, infinite k
-    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p=args
+def tausr1b(*args):  #Static mode, infinite k (USE THIS ONE!!!!~)
+    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p,PS_n=args
     v,a,b,t1,t2=tausr_base(*args)
     xy=sqrt(2)/v/t2
     x=a*xy
@@ -125,11 +160,14 @@ def tausr(*args):
 
 def f1r(*args):
     tt= tausr1b(*args)
-    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p=args
-    tl= 1./PS_p #average time between jumps
+    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p,PS_n=args
     th= PF_n/PC_q
-    if th<tl:
-        print("quick harvest")
+    if PS_p>0:
+        tl= 1./PS_p #average time between jumps
+        if th<tl:
+            print("quick harvest")
+    else:
+        tl= 10000000000
     t0=min(tl,th)
     #return 1 + (exp(-t0/tt)-1)/(t0/tt)
     return (1- log( 1 + t0/tt) / (t0/tt))
@@ -143,26 +181,38 @@ def f1r(*args):
 #=========== FIGURES ==================
 
 if firstpass:
-    #=========== FIGURE 2A ==================
-
-    ## Load in data
-    TS = np.load("../Data/Data_firstpass.npy")
-    xs = np.load("../Data/Data_firstpass_xs.npy")
+    filename="Data_firstpass"
+    set_constants(filename)
+    data=load_data(filename) 
+    TS=data['\\tau_s^R']
+    xs=data['PC_rp']
     #print(TS)
     plt.plot(xs,TS)
     plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs])
     plt.show()
 
 
+if firstpass_ns:
+    filename="Data_firstpass_ns"
+    set_constants(filename)
+    data=load_data(filename) 
+    TS=data['\\tau_s^R']
+    xs=data['PS_n']
+    plt.plot(xs,TS)
+    plt.plot(xs,[tausr(*get_constants(PS_n=x)) for x in xs])
+    plt.plot(xs,[TS[0]/x for x in xs])
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.show()
 
 if fig2a:
     #=========== FIGURE 2A ==================
-
-    ## Load in data
-    TS = np.load("../Data/Data_Fig2a.npy")
-    F1 = np.load("../Data/Data_Fig2a_f1.npy")
-    xs = np.load("../Data/Data_Fig2a_xs.npy")
-    print(TS)
+    filename="Data_Fig2a"
+    set_constants(filename)
+    data=load_data(filename) 
+    TS=data['\\tau_s^R']
+    F1=data["f1"]
+    xs=data['PC_rp']
     plt.plot(xs,TS)
     plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs])
     plt.show()
@@ -175,8 +225,17 @@ if fig2a:
 if fig2b:
     #=========== FIGURE 2B ==================
 
-    TS = np.load("../Data/Data_Fig2b.npy")
-    xy = np.load("../Data/Data_Fig2b_xs.npy")
+    filename="Data_Fig2b"
+    set_constants(filename)
+    data=load_data(filename) 
+    TS=data['\\tau_s^R']
+    F1=data["f1"]
+    X=data['PF_sig']
+    Y=data['PC_f']
+
+    #TS = np.load("../Data/Data_Fig2b.npy")
+    #xy = np.load("../Data/Data_Fig2b_xs.npy")
+    GRD_mx = constants["GRD_mx"]
 
     #3dscatter
     fig = plt.figure()
@@ -185,16 +244,15 @@ if fig2b:
     plt.ylabel("C_f")
     #plt.zlabel("tau_s")
     ax.set_zlim(bottom=0, top=500)
-    X,Y=xy[:,:,0].ravel(),xy[:,:,1].ravel()
-    ax.scatter(X/GRD_mx,Y/GRD_mx,TS[:,:,0].ravel(),c=TS[:,:,0].ravel())
+    XX,YY=X.ravel(),Y.ravel()
+    ax.scatter(XX/GRD_mx,YY/GRD_mx,TS.ravel(),c=TS.ravel())
 
     #Wireframe
-    X,Y=xy[:,:,0],xy[:,:,1]
     Z=X.copy()
     T=X.copy()
     for i in range(Z.shape[0]):
         for j in range(Z.shape[1]):
-            Z[i,j]=TS[i,j,0]
+            Z[i,j]=TS[i,j]
             args=get_constants(PF_sig=X[i,j],PC_f=Y[i,j])
             args[0]=p_opt(*args) #optimal turn probability
             T[i,j]=tausr(*args)
@@ -348,9 +406,29 @@ if fig4opt:
     #=========== FIGURE 4 - OPTIMIZATION ==================
 
     ## Load in data
-    TS = np.load("../Data/Data_Fig4opt.npy")
-    xs = np.load("../Data/Data_Fig4opt_xs.npy")
-    #xs=range(2,11)
-    plt.plot(xs,TS)
-    plt.show()
+    TS = np.load("../Data/Data_Fig4opt_cliq.npy")
+    xy = np.load("../Data/Data_Fig4opt_cliq_xs.npy")
+    #plt.plot(xy,TS)
+    #plt.show()
+    
+    X,Y=xy[:,:,0],xy[:,:,1]
 
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$N_{cliques}$")
+    plt.ylabel(r"$S_n$")
+    ax.set_zlim(bottom=0, top=.01)
+    ax.scatter(X.ravel(),Y.ravel(),TS[:,:,0].ravel())
+    ax.set_zlabel(r"$H$")
+    plt.show()
+    
+    mycmap = plt.cm.get_cmap('Greys')
+    #mycmap.set_under('w')
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlim([1,10])
+    plt.ylim([1,20])
+    plt.pcolor(X,Y,TS[:,:,0], cmap=mycmap,vmin =min(TS[:,:,0].ravel()), vmax=max(TS[:,:,0].ravel()))
+    plt.colorbar()
+    plt.show()

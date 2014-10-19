@@ -49,11 +49,34 @@ cons_dx  = DXY ./ sqrt(DXY[:,1].^2 + DXY[:,2].^2);
 cons_H   = zeros(Float64,PC_n); # catch at time t
 cons_s   = randn(PC_n);cons_s[cons_s.<0]=-1;cons_s[cons_s.>0]=1;cons_s=int(cons_s)
 cons_mi  = int(ones(PC_n));
-cons_sn  = ones(PC_n,PC_n) .*max( eps(),PC_lambda); 
-for j = 1:PC_n; cons_sn[j,j] = 1; end;
 cons_v   = ones(PC_n) .* PC_v;
 
-#All quantities that need to be measured during some simulations
+#### Initialize social network
+cons_sn  = zeros(PC_n,PC_n) #.*max( eps(),PC_lambda); 
+#Cliques
+scliq=floor(PC_n/PC_ncliq) #clique size, first approx
+cliq=cell(PC_ncliq)
+for c=1:PC_ncliq
+    cliq[c]=[(c-1)*scliq+ n  for n=1:scliq ]
+end
+i=1
+n= scliq  * PC_ncliq +1
+while n<PC_n   #distribute remaining fishers
+    cliq[i]=[cliq[i], n ]
+    n+=1
+    i+=1
+end
+for c in cliq
+    for i in c
+        for j in c
+            cons_sn[i,j] = max( eps(),PC_lambda)
+        end
+    end
+end
+#Diagonal
+for j = 1:PC_n; cons_sn[j,j] = 1; end;
+
+#Quantities that have to be measured during simulations
 cons_measure = ["Ts"=>zeros(Float64,PC_n), "Tv"=>zeros(Float64,PC_n) ,
     "ts"=>zeros(Float64,PC_n) , "ns"=>zeros(Float64,PC_n), 
     "distance"=>zeros(Float64,PC_n) ]  

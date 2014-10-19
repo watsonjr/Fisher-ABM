@@ -11,21 +11,21 @@ GRD_mx2 = GRD_mx / 2 # half grid size (used in periodic bnd)
 GRD_x  = [0:GRD_dx:GRD_mx];
 
 ##### School parameters
-PS_n   = 4 # number of schools
+PS_n   = 2 # number of schools
 PS_p   = 0.00; # probability school will move (#do I need this)
 
 #### Fish parameters
 PF_n	 = 10 # number of fish per school
-PF_sig = 25; # distance parameter (km)
+PF_sig = 5; # distance parameter (km)
 
 ##### Fisher parameters
-PC_n   = 2; # number of fishers
+PC_n   = 1; # number of fishers
 PC_v   = 4; # max speed of fishers (km per time)
 PC_h   = 1; # distance at which fishers can catch fish (km)
 #const PC_r   = .25; # correlated random walk angle (drunk ballistic)
-PC_rp  = 0.99; # choose random change in walk (#previously: probability of r1->r2 (r2->r1 = 1-PC_rp))
+PC_rp  = 0.7; # choose random change in walk (#previously: probability of r1->r2 (r2->r1 = 1-PC_rp))
 PC_f   = 5.; # radius of fish finder (x grid cells; km)
-PC_q	 = 1.; # prob of catching fish/rate of depletion if implicit fish
+PC_q	 = 1.; # prob of catching fish (or rate of depletion if implicit fish)
 PC_lambda = 0.; #default weight in the social network
 PC_ncliq = 1; #number of cliques in the social network
 PC_spy = GRD_mx; #Spying distance (important to value (infinite-distance) sharing over mutual spying)
@@ -58,7 +58,7 @@ GRD_nx, GRD_dx, GRD_mx, GRD_mx2, GRD_x,
 PS_n, PS_p, PF_n, PF_sig,
  PC_n, PC_v, PC_h, PC_rp, PC_f,  PC_q, PC_lambda,PC_ncliq, PC_spy)
 
-
+DFT_PRM=deepcopy(PRM) #Default parameters
 
 macro set_constants(struct)
     ### This macro is black magic.
@@ -71,7 +71,7 @@ macro set_constants(struct)
     for f in [:GRD_nx,:GRD_dx,:GRD_mx,:GRD_mx2,:GRD_x,
             :PS_n, :PS_p, :PF_n, :PF_sig,
             :PC_n, :PC_v, :PC_h, :PC_rp, :PC_f,
-            :PC_q, :PC_lambda, :PC_spy]
+            :PC_q, :PC_lambda, :PC_ncliq,:PC_spy]
         # each expression in the block consists of
         # the fieldname = struct.fieldname
         e = :($f = $struct.$f)
@@ -83,12 +83,18 @@ macro set_constants(struct)
     return esc(:($block))
 end
 
+function reinit_parameters()
+    #return global parameters to their default value
+    for f in names(PRM)
+        setfield!(PRM,f,getfield(DFT_PRM,f))
+    end
+end
+
 function save_parameters()
     file=open("./Data/Data_params.dat","w")
     for f in names(PRM)
         #println( PRM.f)
-        test= eval(:(PRM.$f))
-        write(file, "$f  $test\n")
+        write(file, "$f  $(getfield(PRM,f)) \n")
     end
     close(file)
 end

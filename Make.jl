@@ -1,40 +1,37 @@
-
-
-
-
 #### Add modules
 #using PyPlot
-using Types#, Constants
+using Types
 using NPZ, Devectorize
 using PyCall
+import Iterators
 @pyimport rtree.index as pyrtree
 
 
 
 #### Add functions and routines
+include("Utilities.jl");
 include("Constants.jl");
 include("sub_init.jl");
 include("sub_functions.jl");
 include("sub_routines.jl");
 include("Experiments.jl");
 
-
-
 #### Switches for various experiments below
 timingtest=false
 firstpass=false
-fig2a=false
-fig2b=false
+fig2a=true
+fig2b=true
 fig3=false
-fig4opt=true
+fig4opt=false
+fig4opt_cliq=false
 
 
 #### Basic timing/profiling test for a single run
 
 if timingtest
-    do_timingtest()
-    #@profile do_timingtest()
-    #Profile.print(format=:flat)
+    #do_timingtest()
+    @profile do_timingtest()
+    Profile.print(format=:flat)
 end
 
 
@@ -42,25 +39,38 @@ end
 ##(function definitions are in Experiments.jl)
 
 if firstpass
+    reinit_parameters()
     do_first_passage()
+    
+    reinit_parameters()
+    do_fstpass_nschool()
 end
 
 if fig2a
+    reinit_parameters()
     do_fig2a()
 end
 
 if fig2b
+    reinit_parameters()
     do_fig2b()
 end
 
 if fig3
+    reinit_parameters()
     do_fig3()
 end
 
 if fig4opt
+    reinit_parameters()
     do_fig4opt()
 end
 
+
+if fig4opt_cliq
+    reinit_parameters()
+    do_fig4opt_cliq()
+end
 
 
 #################### OLDER EXPERIMENTS #############################

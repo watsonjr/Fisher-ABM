@@ -17,7 +17,7 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2,OUT=None)
  #! and the minimum number of schools visited is <500 
  
  dHs = ones(PC_n);
- cond3=(fish,cons,dTs,EVENTS)->(maximum(dHs) > .00001 || minimum(cons.measure["ns"]) < 500)
+ cond3=(fish,cons,dTs,EVENTS)->(maximum(dHs) > .01 || minimum(cons.measure["ns"]) < 500)
  #! Same as cond2 with estimated catchrate
  
  cond4=(fish,cons,dTs,EVENTS)->isempty(EVENTS["found_school"]) #( maximum(cons.H) < 1)

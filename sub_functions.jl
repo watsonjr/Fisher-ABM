@@ -75,6 +75,9 @@ function fnc_tau(dTs,dHs,cons,EVENTS,FLAGS,turns)
 
     for I=EVENTS["left_school"]
         ts[I]=0
+        if FLAGS["measure_frac"]
+            dHs[I]=-cons.H[I]/turns +10. #store catch rate when leaving school (1)
+        end
     end
     for I=EVENTS["found_school"]
         #println(ns,ts,Ts)
@@ -89,8 +92,9 @@ function fnc_tau(dTs,dHs,cons,EVENTS,FLAGS,turns)
         ts[I] = 1; # reset how long it took to find school
         if FLAGS["measure_frac"]
             if cons.H[I]>1
-                dHs[I]=abs(((cons.H[I]/turns)/cons.measure["Hrate"][I])-1.)
                 cons.measure["Hrate"][I]=cons.H[I]/turns
+                dHs[I]=abs(1+ (dHs[I]-10.)/cons.H[I]*turns) 
+                #compare (1) to catch rate when reaching next school
             end
         end      
     end
