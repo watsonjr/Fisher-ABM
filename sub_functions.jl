@@ -45,8 +45,8 @@ function fnc_optimal_PCrp()
     @set_constants PRM
     v=PC_v
     a=PC_f+PF_sig#min(PF_sig,PF_n*PC_f/(2*pi) )
-    b=GRD_mx2
-    tau2=(a/v * sqrt( log(b/a) -1./2.))
+    b=a+ GRD_mx2 /sqrt(PS_n) 
+    tau2=max(.99,(a/v * sqrt( log(b/a) -1./2.)))
     return 1.-1./tau2
 end
 
@@ -255,6 +255,7 @@ end
 function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
     @set_constants PRM
     MI=cons.MI
+    V=cons.V
     for i =  1:PC_n
         if cons.target[i]!=0
             continue
@@ -263,10 +264,12 @@ function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
         if MI[i] == 1 # if searching
             if rand() < PC_rp # maybe switch to steaming
                 MI[i] = 0
+                V[i]=PC_v
             end
         elseif MI[i] == 0 # if steaming
             if rand() < (1-PC_rp) # maybe switch to searching
                 MI[i] = 1
+                V[i]=0
             end
         end
     end
@@ -494,26 +497,27 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
                 cons.V[i]=0
                 school.pop[tgt]-=PC_q #use probability of catch as depletion rate
                 cons.H[i]+=PC_q
-                continue
-            end
-            fx=FX[tgt,:] #position of the target
-            if isnan(fx[1]) #if the same fish was captured by someone else
-                continue
-            end
-            cons.V[i]=0 #The boat stops moving until it catches the fish
-            # probabilistic catch
-            r =rand()
-            if r < PC_q
-                push!(EVENTS["captured"],tgt)
-                school.pop[fish.fs[tgt]]-=1 #School depleted by one
-                if FLAGS["rtree"]
-                    #Fish is removed from the tree
-                    fishtree.trees[fish.fs[tgt] ][:delete](tgt,hcat(fx,fx+PC_h )') 
+            else
+                #For explicit fish
+                fx=FX[tgt,:] #position of the target
+                if isnan(fx[1]) #if the same fish was captured by someone else
+                    continue
                 end
-                FX[tgt,:]=NaN; #Fish disappears
-                push!(EVENTS["captor"],i)
-                nbcaptors[i]+=1
-                cons.V[i] = PC_v
+                cons.V[i]=0 #The boat stops moving until it catches the fish
+                # probabilistic catch
+                r =rand()
+                if r < PC_q
+                    push!(EVENTS["captured"],tgt)
+                    school.pop[fish.fs[tgt]]-=1 #School depleted by one
+                    if FLAGS["rtree"]
+                        #Fish is removed from the tree
+                        fishtree.trees[fish.fs[tgt] ][:delete](tgt,hcat(fx,fx+PC_h )') 
+                    end
+                    FX[tgt,:]=NaN; #Fish disappears
+                    push!(EVENTS["captor"],i)
+                    nbcaptors[i]+=1
+                    cons.V[i] = PC_v
+                end
             end
         end
     end

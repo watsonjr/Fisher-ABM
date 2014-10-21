@@ -43,20 +43,23 @@ function do_fstpass_nschool()
     ###### FIRST PASSAGE time (stop as soon as a school is found)
     ### As a function of number of schools
     println("First passage time")
-    RP = [1, 2,4,9,16,25];
+    RP = 1:2:60 #[1, 2,4,9,16,25,36,49,64];
     Ts = cell(size(RP));
     PRM.PS_p=0.0
     for i = 1:length(RP)
         PRM.PS_n = RP[i];
         time=[]
+        dist=[]
         for iter in 1:300
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+            #pos=cons.x[1,:]
             time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS,4) ) ;
+            dist=vcat(dist, cons.measure["distance"][1])#fnc_dist(cons.x[1,:],pos))
         end
-        Ts[i] = RP[i], mean(time),std(time);#cons.measure["Ts"], cons.measure["Tv"];
-        print(i,"\n")
+        Ts[i] = RP[i], mean(time),std(time),mean(dist);#cons.measure["Ts"], cons.measure["Tv"];
+        print("$i $(RP[i]) schools ($(3.14159*PRM.PF_sig^2 * RP[i]/GRD_mx^2 *100)\% covering) \n")
     end
-    save_results(Ts,R"PS_n \tau_s^R std","Data_firstpass_ns",PRM)
+    save_results(Ts,R"PS_n \tau_s^R std, dist","Data_firstpass_ns",PRM)
 end
 
 function do_fig2a()
@@ -90,25 +93,10 @@ function do_fig2b()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             FLAGS["measure_frac"]=true
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result[i,j] =SIG[i],FF[j], mean(cons.measure["Ts"]), mean(cons.measure["Tv"]),mean(cons.measure["f1"]);
+            result[i,j] =SIG[i],FF[j], mean(cons.measure["Ts"]), mean(cons.measure["Tv"]),mean(cons.measure["f1"]),PRM.PC_rp;
         end
     end
-    save_results(result,R"PF_sig PC_f \tau_s^R std f1","Data_Fig2b",PRM)
-    #=
-    TS = zeros(Float64,size(SIG,1),size(FF,1),PRM.PC_n)
-    F1 = zeros(Float64,size(SIG,1),size(FF,1),PRM.PC_n)
-    xs = zeros(Float64,size(SIG,1),size(FF,1),2)
-    for i = 1:size(result,1)
-        for j=1:size(result,2)
-            TS[i,j,:] = result[i,j][2]
-            xs[i,j,:]=result[i,j][1]
-            F1[i,j,:] = result[i,j][3]
-        end
-    end
-    npzwrite("./Data/Data_Fig2b.npy", TS)
-    npzwrite("./Data/Data_Fig2b_f1.npy", TS)
-    npzwrite("./Data/Data_Fig2b_xs.npy", xs)
-    =#
+    save_results(result,R"PF_sig PC_f \tau_s^R std f1 PC_rp","Data_Fig2b",PRM)
 end
 
 
@@ -118,13 +106,17 @@ end
 function do_fig3()
     ###### Test performance as a function of tau_l and tau_h
     ## basic values of C_f and F_sig
-    PRM.PC_f=PRM.GRD_nx*0.05
-    PRM.PF_sig=PRM.GRD_nx*0.05
+    PRM.PC_f=PRM.GRD_nx*0.03
+    PRM.PF_sig=PRM.GRD_nx*0.04
     PRM.PC_n = 2; #2 fishers!
+    PRM.PS_n = int(round(.10 / (pi *PRM.PF_sig^2 /PRM.GRD_nx^2 ) )) ;
+    println("Performance as a function of tau_l and tau_h")
+    println("Number of schools: $(PRM.PS_n)")
     
     JUMP = logspace(log10(0.001),log10(.1),32);
     CATCH  = logspace(log10(0.01),log10(1),32);
-    result = cell(size(JUMP,1),size(CATCH,1));
+    result_inf = cell(size(JUMP,1),size(CATCH,1));
+    result_noinf = cell(size(JUMP,1),size(CATCH,1));
 
     for i = 1:length(JUMP)
         for j = 1:length(CATCH)
@@ -141,7 +133,7 @@ function do_fig3()
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            res =[PRM.PS_p,PRM.PC_q],cons.measure["Ts"],cons.measure["f1"],cons.measure["fij"],cons.measure["H"];
+            result_noinf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["fij"]),mean(cons.measure["Hrate"]);
 
             println("With full information")
             #With information
@@ -151,44 +143,14 @@ function do_fig3()
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            Tsinf=cons.measure["Ts"]
-            F1inf=cons.measure["f1"] 
 
-            result[i,j,:] =tuple(res..., (cons.measure["Ts"],cons.measure["f1"],cons.measure["fij"],cons.measure["H"])...)
+            result_inf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["fij"]),mean(cons.measure["Hrate"]),PRM.PC_rp
 
         end
     end
-    xs = zeros(Float64,size(JUMP,1),size(CATCH,1),2)
-    TS = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    TSinf = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    F1 = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    F1inf = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    Catch = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    Catchinf = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    Fij = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    Fijinf = zeros(Float64,size(JUMP,1),size(CATCH,1),PRM.PC_n)
-    for i = 1:size(result,1)
-        for j=1:size(result,2)
-            xs[i,j,:]= result[i,j][1]
-            TS[i,j,:] = result[i,j][2]
-            F1[i,j,:] = result[i,j][3]
-            Fij[i,j,:] = result[i,j][4]
-            Catch[i,j,:] = result[i,j][5]
-            TSinf[i,j,:] = result[i,j][6]
-            F1inf[i,j,:] = result[i,j][7]
-            Fijinf[i,j,:] = result[i,j][8]
-            Catchinf[i,j,:] = result[i,j][9]
-        end
-    end
-    npzwrite("./Data/Data_Fig3_xs.npy", xs)
-    npzwrite("./Data/Data_Fig3_noinf.npy", TS)
-    npzwrite("./Data/Data_Fig3_inf.npy", TSinf)
-    npzwrite("./Data/Data_Fig3_f1_noinf.npy", F1)
-    npzwrite("./Data/Data_Fig3_f1_inf.npy", F1inf)
-    npzwrite("./Data/Data_Fig3_catch_noinf.npy", Catch)
-    npzwrite("./Data/Data_Fig3_catch_inf.npy", Catchinf)
-    npzwrite("./Data/Data_Fig3_fij_noinf.npy", Fij)
-    npzwrite("./Data/Data_Fig3_fij_inf.npy", Fijinf)
+    save_results(result_inf,R"PS_p PC_q \tau_s^R f1 fij H PC_rp","Data_Fig3_inf",PRM)
+    save_results(result_noinf,R"PS_p PC_q \tau_s^R f1 fij H PC_rp","Data_Fig3_noinf",PRM)
+
 end
 
 
@@ -211,23 +173,13 @@ function do_fig4opt()
             PRM.PS_n = NS[j];
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             FLAGS["measure_frac"]=true
-            make_season(school,fish,cons,fishtree,EVENTS,FLAGS,3);
-            result[i,j] = [cons.measure["Hrate"][1] cons.measure["Hdist"][1] cons.measure["f2"][1]];
+            make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+            result[i,j] = RP[i], NS[j],mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean( cons.measure["Hdist"]),mean( cons.measure["f2"]);
             println("$i $j")
         end
     end
+    save_results(result,R"PC_lambda PS_n \tau_s^R Hrate Hdist f2","Data_Fig4opt",PRM)
 
-    TS = zeros(Float64,size(RP,1),size(NS,1),3)
-    xs = zeros(Float64,size(RP,1),size(NS,1),2)
-    for i = 1:length(RP)
-        for j=1:length(NS)
-            TS[i,j,:] = result[i,j]
-            xs[i,j,:] = [RP[i]  NS[j] ]
-        end
-    end
-    
-    npzwrite("./Data/Data_Fig4opt.npy", TS)
-    npzwrite("./Data/Data_Fig4opt_xs.npy", xs)
 end
 
 function do_fig4opt_cliq()
@@ -250,24 +202,51 @@ function do_fig4opt_cliq()
             PRM.PS_n = NS[j];
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             FLAGS["measure_frac"]=true
-            make_season(school,fish,cons,fishtree,EVENTS,FLAGS,2);
-            result[i,j] = [cons.measure["Hrate"][1] cons.measure["Hdist"][1] cons.measure["f2"][1]];
+            make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+            result[i,j] = RP[i], NS[j],mean(cons.measure["Ts"]),mean(cons.measure["Hrate"]),mean( cons.measure["Hdist"]),mean( cons.measure["f2"]);
             println("$i $j")
         end
     end
+    save_results(result,R"PC_ncliq PS_n \tau_s^R Hrate Hdist f2","Data_Fig4opt_cliq",PRM)
+end
 
-    TS = zeros(Float64,size(RP,1),size(NS,1),3)
-    xs = zeros(Float64,size(RP,1),size(NS,1),2)
-    for i = 1:length(RP)
-        for j=1:length(NS)
-            TS[i,j,:] = result[i,j]
-            xs[i,j,:] = [RP[i]  NS[j] ]
+
+function do_rndcliq()
+    println("Optimal clique size vs all other clique sizes")
+    PRM.PC_n=30
+    PRM.PC_f=PRM.GRD_nx*0.04
+    PRM.PF_sig=PRM.GRD_nx*0.04
+    PRM.PS_n=20
+    PRM.PC_lambda = 1.
+
+    occur=zeros(PRM.PC_n) #occurrence of a clique size
+    H=zeros(PRM.PC_n) #average catch rate per clique size
+    TS=zeros(PRM.PC_n) #average search time per clique size
+    for i = 1:1000
+        part=pycall(pypartition["random_partition"],PRM.PC_n) #random partition of PC_n
+        cliq=cell(length(part)) #composition of the cliques
+        idx=1
+        for p in part
+            cliq[p]=idx:idx+p-1
+            idx+=p
+        end
+        #Run
+        school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium(cliques=cliq);
+        FLAGS["measure_frac"]=true
+        make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+        for p in part
+            #for each element in the partition
+            occur[p]+=1
+            H[p]+=mean(cons.measure["Hrate"][cliq[p]])
+            TS[p]+=mean(cons.measure["TS"][cliq[p]])
         end
     end
-    
-    npzwrite("./Data/Data_Fig4opt_cliq.npy", TS)
-    npzwrite("./Data/Data_Fig4opt_cliq_xs.npy", xs)
+    H/=occur
+    TS/=occur
+    result=hcat(1:PC_n,H,TS,occur)'
+    save_results(result,R"size H TS occur","Data_Fig4opt_cliq",PRM)
 end
+
 
 ######## Test effect of friendship, on Tau_s and CPUE, as F_n is varied
 

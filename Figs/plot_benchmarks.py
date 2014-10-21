@@ -4,20 +4,20 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from math import *
 import os
-
+from datatools import *
 
 
 path="../Data/"
 
 #### SWITCHES FOR WHICH FIGURES TO PLOT ####
 
-firstpass=0
-firstpass_ns=0
+firstpass=1
+firstpass_ns=1
 fig2a=1
 fig2b=1
-fig3=0
-fig3bis=0 #Other quantities related to fig3
-fig4opt=0
+fig3=1
+fig3bis=1 #Other quantities related to fig3
+fig4opt=1
 #=========== Extraction of constants from julia code ==================
 
 if 0:
@@ -79,10 +79,15 @@ def get_constants(**kwargs):
 
 #=========== Analytical expressions ==================
 
+def domain_size(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
+    b=((PF_sig+PC_f)/2+GRD_nx*GRD_dx/2./sqrt(PS_n) )
+    return b
+
 def tausr_base(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
     v=PC_v
     a=(PC_f+PF_sig) #min(PF_sig,PF_n*PC_f/(2*pi) )  #This correction applies for explicit fish
-    b=GRD_nx*GRD_dx/2.  /sqrt(PS_n)*(.5+sqrt(2)/2)  #Factor (1+sqrt(2))/2 to approximate circle domain->square domain effect
+    b=domain_size(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n)
+    PC_rp=max(PC_rp,0.01)
     t2=1./(1.-PC_rp) #avg time of straight flight (CHECKED NUMERICALLY)
     t1=1./(PC_rp) #avg time of wait (CHECKED NUMERICALLY)
     if log(b/a)>.5:
@@ -94,9 +99,12 @@ def tausr_base(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
     
 def p_opt(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
     v=PC_v
-    a=PC_f+min(PF_sig,PF_n*PC_f/(2*pi) )
-    b=GRD_nx*GRD_dx/2.
-    t2opt= (a/v * sqrt( log(b/a) -1./2.))
+    a=PC_f+PF_sig#min(PF_sig,PF_n*PC_f/(2*pi) )
+    b=domain_size(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n)
+    if log(b/a)>.5:
+        t2opt= (a/v * sqrt( log(b/a)-1./2.))
+    else:
+        t2opt=0.0001
     #if 1./t2opt>1:
     #    print (a,b,v,t2opt)
     popt=min(.98,1./t2opt)
@@ -187,9 +195,7 @@ if firstpass:
     TS=data['\\tau_s^R']
     xs=data['PC_rp']
     #print(TS)
-    plt.plot(xs,TS)
-    plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs])
-    plt.show()
+    plot(TS,[tausr(*get_constants(PC_rp=x)) for x in xs],xs=xs)
 
 
 if firstpass_ns:
@@ -197,13 +203,12 @@ if firstpass_ns:
     set_constants(filename)
     data=load_data(filename) 
     TS=data['\\tau_s^R']
+    dist=data['dist']
     xs=data['PS_n']
-    plt.plot(xs,TS)
-    plt.plot(xs,[tausr(*get_constants(PS_n=x)) for x in xs])
-    plt.plot(xs,[TS[0]/x for x in xs])
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.show()
+    plot(TS,[tausr(*get_constants(PS_n=x)) for x in xs],xs=xs,log='xy')
+   # plt.plot(xs,[TS[0]/x for x in xs])
+   # plot(xs,dist,hold=1)
+    #plot(xs,[domain_size(*get_constants(PS_n=x)) for x in xs],log='xy')
 
 if fig2a:
     #=========== FIGURE 2A ==================
@@ -215,6 +220,7 @@ if fig2a:
     xs=data['PC_rp']
     plt.plot(xs,TS)
     plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs])
+    
     plt.show()
     plt.plot(xs,F1)
     plt.plot(xs,[f1r(*get_constants(PC_rp=x)) for x in xs])
@@ -248,19 +254,23 @@ if fig2b:
     ax.scatter(XX/GRD_mx,YY/GRD_mx,TS.ravel(),c=TS.ravel())
 
     #Wireframe
-    Z=X.copy()
     T=X.copy()
-    for i in range(Z.shape[0]):
-        for j in range(Z.shape[1]):
-            Z[i,j]=TS[i,j]
+    Texp=X.copy()
+    for i in range(T.shape[0]):
+        for j in range(T.shape[1]):
             args=get_constants(PF_sig=X[i,j],PC_f=Y[i,j])
             args[0]=p_opt(*args) #optimal turn probability
             T[i,j]=tausr(*args)
+            args[0]=data["PC_rp"][i,j] #optimal turn probability
+            Texp[i,j]=tausr(*args)
 
-    ax.plot_wireframe(X/GRD_mx,Y/GRD_mx,T)
+
+    #ax.plot_wireframe(X/GRD_mx,Y/GRD_mx,T)
+    ax.plot_wireframe(X/GRD_mx,Y/GRD_mx,Texp)
     plt.show()
 
     #Heatmap
+    Z=TS
     fig = plt.figure()
     plt.xlabel("F_sigma")
     plt.ylabel("C_f")
@@ -271,51 +281,57 @@ if fig2b:
 if fig3:
     #=========== FIGURE 3 ==================
 
-    TS = np.load("../Data/Data_Fig3_noinf.npy")
-    TSinf = np.load("../Data/Data_Fig3_inf.npy")
-    xy = np.load("../Data/Data_Fig3_xs.npy")
+    filename="Data_Fig3_inf"
+    set_constants(filename)
+    data_inf=load_data(filename) 
+    filename="Data_Fig3_noinf"
+    data_noinf=load_data(filename) 
+    TS=data_noinf['\\tau_s^R']
+    TSinf=data_inf['\\tau_s^R']
+    X=data_inf['PS_p']
+    Y=data_inf['PC_q']
+
+
     #3dscatter
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
-    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
+    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
     #plt.zlabel("tau_s")
-    X,Y=xy[:,:,0],xy[:,:,1]
-    Z1,Z2=TS[:,:,0].ravel(),TSinf[:,:,0].ravel()
+    Z1,Z2=TS[:,:].ravel(),TSinf[:,:].ravel()
     X=1./X
     Y=constants["PF_n"]/Y
-    X,Y=np.log10(X),np.log10(Y)
+   # X,Y=np.log10(X),np.log10(Y)
 
-    ax.set_zlim(bottom=-100, top=100)
-    ax.scatter(X.ravel(),Y.ravel(),Z1-Z2,c=Z1-Z2)
-    ax.set_zlabel(r"$\tau_s^R - \tau_s^I$")
+    taus1=tausr(*get_constants(**constants))
+#    ax.set_zlim(bottom=-1, top=1)
+    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z1/Z2-1,c=Z1/Z2-1)
+    ax.set_zlabel(r"$VOI= \tau_s^R/\tau_s^I-1$")
     plt.show()
     
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
-    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
+    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
     ax.set_zlim(bottom=0, top=1000)
-    ax.scatter(X.ravel(),Y.ravel(),Z1,c='r')
-    ax.scatter(X.ravel(),Y.ravel(),Z2,c='b')
+    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z1,c='r')
+    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z2,c='b')
     ax.set_zlabel(r"$\tau_s$")
 
     #Wireframe
-    Z1=X.copy()
-    Z2=X.copy()
     T=X.copy()
-    for i in range(Z1.shape[0]):
-        for j in range(Z1.shape[1]):
-            Z1[i,j]=TS[i,j,0]
-            Z2[i,j]=TSinf[i,j,0]
-            args=get_constants(PS_p=X[i,j],PF_n=Y[i,j])
+    for i in range(T.shape[0]):
+        for j in range(T.shape[1]):
+            args=get_constants(PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j] )
             args[0]=p_opt(*args) #optimal turn probability
             T[i,j]=tausr(*args)
 
-    ax.plot_wireframe(X,Y,T)
+    ax.plot_wireframe(X/taus1,Y/taus1,T)
     plt.show()
 
     #Heatmap
+    #Z1=TS
+    #Z2=TSinf
     #fig = plt.figure()
     #plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
     #plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
@@ -325,16 +341,28 @@ if fig3:
     
     
 if fig3bis:
-    xy = np.load("../Data/Data_Fig3_xs.npy")
-    X,Y=xy[:,:,0],xy[:,:,1]
+    filename="Data_Fig3_inf"
+    set_constants(filename)
+    data_inf=load_data(filename) 
+    filename="Data_Fig3_noinf"
+    data_noinf=load_data(filename) 
+    TS=data_noinf['\\tau_s^R']
+    TSinf=data_inf['\\tau_s^R']
+    F1=data_noinf["f1"]
+    F1inf=data_inf["f1"]
+    Fij=data_noinf["fij"]
+    Fijinf=data_inf["fij"]
+    Catch=data_noinf["H"]
+    Catchinf=data_inf["H"]
+    X=data_inf['PS_p']
+    Y=data_inf['PC_q']
+
     X=1./X
     Y=constants["PF_n"]/Y
     X,Y=np.log10(X),np.log10(Y)
     
     #F1
-    F1 = np.load("../Data/Data_Fig3_f1_noinf.npy")
-    F1inf = np.load("../Data/Data_Fig3_f1_inf.npy")
-    T1,T2=F1[:,:,0].ravel(),F1inf[:,:,0].ravel()
+    T1,T2=F1[:,:].ravel(),F1inf[:,:].ravel()
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
@@ -356,16 +384,17 @@ if fig3bis:
     
     
     #CATCH
-    Catch = np.load("../Data/Data_Fig3_catch_noinf.npy")
-    Catchinf = np.load("../Data/Data_Fig3_catch_inf.npy")
-    T1,T2=Catch[:,:,0].ravel(),Catchinf[:,:,0].ravel()
+    taus1=tausr(*get_constants())
+
+    T1,T2=Catch[:,:].ravel(),Catchinf[:,:].ravel()
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
-    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
-    ax.scatter(X.ravel(),Y.ravel(),T1-T2,c=T1-T2)
-    ax.set_zlim(bottom=min(T1-T2), top=max(T1-T2))
-    ax.set_zlabel(r"$H^R - H^I$")
+    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
+    Z=T2/T1-1
+    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z,c=Z)
+    ax.set_zlim(bottom=min(Z), top=max(Z))
+    ax.set_zlabel(r"$H^I/H^R-1$")
     plt.show()
     
     fig = plt.figure()
@@ -378,9 +407,7 @@ if fig3bis:
     plt.show()
     
     #FIJ
-    Fij = np.load("../Data/Data_Fig3_fij_noinf.npy")
-    Fijinf = np.load("../Data/Data_Fig3_fij_inf.npy")
-    T1,T2=Fij[:,:,0].ravel(),Fijinf[:,:,0].ravel()
+    T1,T2=Fij[:,:].ravel(),Fijinf[:,:].ravel()
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
@@ -404,23 +431,28 @@ if fig3bis:
 
 if fig4opt:
     #=========== FIGURE 4 - OPTIMIZATION ==================
+    filename="Data_Fig4opt"
+    set_constants(filename)
+    data=load_data(filename) 
+    X=data['PC_lambda']
+    Y=data['PS_n']
+    TS=data['\\tau_s^R']
+    H=data['Hdist']
 
-    ## Load in data
-    TS = np.load("../Data/Data_Fig4opt_cliq.npy")
-    xy = np.load("../Data/Data_Fig4opt_cliq_xs.npy")
-    #plt.plot(xy,TS)
-    #plt.show()
-    
-    X,Y=xy[:,:,0],xy[:,:,1]
-
-    
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$N_{cliques}$")
+    plt.xlabel(r"$\lambda$")
     plt.ylabel(r"$S_n$")
-    ax.set_zlim(bottom=0, top=.01)
-    ax.scatter(X.ravel(),Y.ravel(),TS[:,:,0].ravel())
+#    ax.set_zlim(bottom=0, top=.01)
+    ax.scatter(X.ravel(),Y.ravel(),TS[:,:].ravel())
+    ax.set_zlabel(r"$\tau_s$")
+    plt.show()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\lambda$")
+    plt.ylabel(r"$S_n$")
     ax.set_zlabel(r"$H$")
+    ax.scatter(X.ravel(),Y.ravel(),H[:,:].ravel())
     plt.show()
     
     mycmap = plt.cm.get_cmap('Greys')
@@ -429,6 +461,41 @@ if fig4opt:
     plt.yscale("log")
     plt.xlim([1,10])
     plt.ylim([1,20])
-    plt.pcolor(X,Y,TS[:,:,0], cmap=mycmap,vmin =min(TS[:,:,0].ravel()), vmax=max(TS[:,:,0].ravel()))
+    plt.pcolor(X,Y,TS[:,:], cmap=mycmap,vmin =min(TS[:,:].ravel()), vmax=max(TS[:,:].ravel()))
+    plt.colorbar()
+    plt.show()
+    
+    
+    filename="Data_Fig4opt_cliq"
+    set_constants(filename)
+    data=load_data(filename) 
+    X=data['PC_ncliq']
+    Y=data['PS_n']
+    TS=data['\\tau_s^R']
+    H=data['Hdist']
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$N_{cliques}$")
+    plt.ylabel(r"$S_n$")
+#    ax.set_zlim(bottom=0, top=.01)
+    ax.scatter(X.ravel(),Y.ravel(),TS[:,:].ravel())
+    ax.set_zlabel(r"$\tau_s^r$")
+    plt.show()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$N_{cliques}$")
+    plt.ylabel(r"$S_n$")
+    ax.scatter(X.ravel(),Y.ravel(),H[:,:].ravel())
+    ax.set_zlabel(r"$H$")
+    plt.show()
+
+    mycmap = plt.cm.get_cmap('Greys')
+    #mycmap.set_under('w')
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlim([1,10])
+    plt.ylim([1,20])
+    plt.pcolor(X,Y,TS[:,:], cmap=mycmap,vmin =min(TS[:,:].ravel()), vmax=max(TS[:,:].ravel()))
     plt.colorbar()
     plt.show()

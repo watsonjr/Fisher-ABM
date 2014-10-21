@@ -4,8 +4,9 @@ using Types
 using NPZ, Devectorize
 using PyCall
 import Iterators
-@pyimport rtree.index as pyrtree
-
+@pyimport rtree.index as pyrtree #R-tree python module
+unshift!(PyVector(pyimport("sys")["path"]), "") #include local folder in search
+pypartition=pyimport(:random_partition) #Random partition for experiment
 
 
 #### Add functions and routines
@@ -21,9 +22,9 @@ timingtest=false
 firstpass=false
 fig2a=true
 fig2b=true
-fig3=false
-fig4opt=false
-fig4opt_cliq=false
+fig3=true
+fig4opt=true
+fig4opt_cliq=true
 
 
 #### Basic timing/profiling test for a single run

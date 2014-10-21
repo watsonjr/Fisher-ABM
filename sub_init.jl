@@ -1,7 +1,7 @@
 
 
 ###### PRAMETERS / CONSTANTS for running the model to equilibrium
-function init_equilibrium()
+function init_equilibrium(cliq=None)
 #### Initialize fish
 #! all we need are fish location (x,y)
 #! the school location (x,y)
@@ -55,17 +55,18 @@ cons_v   = ones(PC_n) .* PC_v;
 cons_sn  = zeros(PC_n,PC_n) #.*max( eps(),PC_lambda); 
 #Cliques
 scliq=floor(PC_n/PC_ncliq) #clique size, first approx
-cliq=cell(PC_ncliq)
-for c=1:PC_ncliq
-    cliq[c]=[(c-1)*scliq+ n  for n=1:scliq ]
-end
-i=1
-n= scliq  * PC_ncliq +1
-while n<PC_n   #distribute remaining fishers
-    cliq[i]=[cliq[i], n ]
-    n+=1
-    i+=1
-end
+if cliq ==None
+    cliq=cell(PC_ncliq)
+    for c=1:PC_ncliq
+        cliq[c]=[(c-1)*scliq+ n  for n=1:scliq ]
+    end
+    i=1
+    n= scliq  * PC_ncliq +1
+    while n<PC_n   #distribute remaining fishers
+        cliq[i]=[cliq[i], n ]
+        n+=1
+        i+=1
+    end
 for c in cliq
     for i in c
         for j in c
