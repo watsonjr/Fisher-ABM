@@ -11,20 +11,20 @@ GRD_mx2 = GRD_mx / 2 # half grid size (used in periodic bnd)
 GRD_x  = [0:GRD_dx:GRD_mx];
 
 ##### School parameters
-PS_n   = 2 # number of schools
+PS_n   = 20 # number of schools
 PS_p   = 0.00; # probability school will move (#do I need this)
 
 #### Fish parameters
 PF_n	 = 10 # number of fish per school
-PF_sig = 5; # distance parameter (km)
+PF_sig = 4; # distance parameter (km)
 
 ##### Fisher parameters
-PC_n   = 1; # number of fishers
+PC_n   = 30; # number of fishers
 PC_v   = 4; # max speed of fishers (km per time)
 PC_h   = 1; # distance at which fishers can catch fish (km)
 #const PC_r   = .25; # correlated random walk angle (drunk ballistic)
 PC_rp  = 0.7; # choose random change in walk (#previously: probability of r1->r2 (r2->r1 = 1-PC_rp))
-PC_f   = 2.; # radius of fish finder (x grid cells; km)
+PC_f   = 4.; # radius of fish finder (x grid cells; km)
 PC_q	 = 1.; # prob of catching fish (or rate of depletion if implicit fish)
 PC_lambda = 0.; #default weight in the social network
 PC_ncliq = 1; #number of cliques in the social network

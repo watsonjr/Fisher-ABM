@@ -6,18 +6,25 @@ from math import *
 import os
 from datatools import *
 
+#Humongous plotter for various basic experiments
+#(written organically, so stylistically criticizable)
 
 path="../Data/"
 
 #### SWITCHES FOR WHICH FIGURES TO PLOT ####
 
-firstpass=1
-firstpass_ns=1
-fig2a=1
-fig2b=1
-fig3=1
-fig3bis=1 #Other quantities related to fig3
-fig4opt=1
+firstpass=0
+firstpass_ns=0
+fig2a=0
+fig2b=0
+fig3=0 #Fig3 for tausr
+fig3H=0 #Fig3 for catch rate
+fig3f=0 #Other quantities related to fig3 (analytics)
+fig4opt=0 #optimal lambda
+fig4opt_cliq=1 #optimal ncliques
+fig4opt_comp=0 #cliques vs lambda
+rndcliq=1  #random partition of fishers into cliques
+
 #=========== Extraction of constants from julia code ==================
 
 if 0:
@@ -80,7 +87,7 @@ def get_constants(**kwargs):
 #=========== Analytical expressions ==================
 
 def domain_size(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
-    b=((PF_sig+PC_f)/2+GRD_nx*GRD_dx/2./sqrt(PS_n) )
+    b=(PF_sig+PC_f+GRD_nx*GRD_dx/sqrt(PS_n) )/2.
     return b
 
 def tausr_base(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
@@ -301,11 +308,11 @@ if fig3:
     Z1,Z2=TS[:,:].ravel(),TSinf[:,:].ravel()
     X=1./X
     Y=constants["PF_n"]/Y
-   # X,Y=np.log10(X),np.log10(Y)
-
     taus1=tausr(*get_constants(**constants))
+    X,Y=np.log10(X/taus1),np.log10(Y/taus1)
+
 #    ax.set_zlim(bottom=-1, top=1)
-    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z1/Z2-1,c=Z1/Z2-1)
+    ax.scatter(X.ravel(),Y.ravel(),Z1/Z2-1,c=Z1/Z2-1)
     ax.set_zlabel(r"$VOI= \tau_s^R/\tau_s^I-1$")
     plt.show()
     
@@ -313,9 +320,9 @@ if fig3:
     ax = fig.add_subplot(111, projection='3d')
     plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
     plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
-    ax.set_zlim(bottom=0, top=1000)
-    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z1,c='r')
-    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z2,c='b')
+    ax.set_zlim(bottom=0, top=200)
+    ax.scatter(X.ravel(),Y.ravel(),Z1,c='r')
+    ax.scatter(X.ravel(),Y.ravel(),Z2,c='b')
     ax.set_zlabel(r"$\tau_s$")
 
     #Wireframe
@@ -326,7 +333,7 @@ if fig3:
             args[0]=p_opt(*args) #optimal turn probability
             T[i,j]=tausr(*args)
 
-    ax.plot_wireframe(X/taus1,Y/taus1,T)
+    ax.plot_wireframe(X,Y,T)
     plt.show()
 
     #Heatmap
@@ -340,7 +347,53 @@ if fig3:
     #plt.show()
     
     
-if fig3bis:
+if fig3H:
+    #CATCH
+    filename="Data_Fig3_inf"
+    set_constants(filename)
+    data_inf=load_data(filename) 
+    filename="Data_Fig3_noinf"
+    data_noinf=load_data(filename) 
+    Catch=data_noinf["H"]
+    Catchinf=data_inf["H"]
+    X=data_inf['PS_p']
+    Y=data_inf['PC_q']
+
+    X=1./X
+    Y=constants["PF_n"]/Y
+    taus1=tausr(*get_constants())
+    X,Y=np.log10(X/taus1),np.log10(Y/taus1)
+
+    T1,T2=Catch[:,:].ravel(),Catchinf[:,:].ravel()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
+    Z=T2/T1-1
+    ax.scatter(X.ravel(),Y.ravel(),Z,c=Z)
+    ax.set_zlim(bottom=min(Z), top=max(Z))
+    ax.set_zlabel(r"$H^I/H^R-1$")
+    plt.show()
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
+    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
+    ax.scatter(X.ravel(),Y.ravel(),T1,c='r')
+    ax.scatter(X.ravel(),Y.ravel(),T2,c='b')
+    ax.set_zlabel(r"$H$")
+    plt.show()
+    
+    mycmap = plt.cm.get_cmap('seismic')
+    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
+    Z=Catchinf/Catch-1.
+    plt.pcolor(X, Y, Z,  vmin=Z.min(), vmax=Z.max(),cmap=mycmap)
+    plt.colorbar()
+    plt.show()
+    
+if fig3f:
+    #FRACTIONS
     filename="Data_Fig3_inf"
     set_constants(filename)
     data_inf=load_data(filename) 
@@ -353,14 +406,15 @@ if fig3bis:
     Fij=data_noinf["fij"]
     Fijinf=data_inf["fij"]
     Catch=data_noinf["H"]
-    Catchinf=data_inf["H"]
+
     X=data_inf['PS_p']
     Y=data_inf['PC_q']
 
     X=1./X
     Y=constants["PF_n"]/Y
-    X,Y=np.log10(X),np.log10(Y)
-    
+    taus1=tausr(*get_constants(**constants))
+    X,Y=np.log10(X/taus1),np.log10(Y/taus1)
+        
     #F1
     T1,T2=F1[:,:].ravel(),F1inf[:,:].ravel()
     fig = plt.figure()
@@ -380,30 +434,6 @@ if fig3bis:
     ax.set_zlim(bottom=-.5, top=.5)
     ax.scatter(X.ravel(),Y.ravel(),T1-T2,c=T1-T2)
     ax.set_zlabel(r"$f_1^R - f_1^I$")
-    plt.show()
-    
-    
-    #CATCH
-    taus1=tausr(*get_constants())
-
-    T1,T2=Catch[:,:].ravel(),Catchinf[:,:].ravel()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
-    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
-    Z=T2/T1-1
-    ax.scatter(X.ravel()/taus1,Y.ravel()/taus1,Z,c=Z)
-    ax.set_zlim(bottom=min(Z), top=max(Z))
-    ax.set_zlabel(r"$H^I/H^R-1$")
-    plt.show()
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
-    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
-    ax.scatter(X.ravel(),Y.ravel(),T1,c='r')
-    ax.scatter(X.ravel(),Y.ravel(),T2,c='b')
-    ax.set_zlabel(r"$H$")
     plt.show()
     
     #FIJ
@@ -455,17 +485,17 @@ if fig4opt:
     ax.scatter(X.ravel(),Y.ravel(),H[:,:].ravel())
     plt.show()
     
-    mycmap = plt.cm.get_cmap('Greys')
+    mycmap = plt.cm.get_cmap('seismic')
     #mycmap.set_under('w')
     plt.xscale("log")
     plt.yscale("log")
-    plt.xlim([1,10])
-    plt.ylim([1,20])
+    plt.xlim([np.min(X),np.max(X)])
+    plt.ylim([np.min(Y),np.max(Y)])
     plt.pcolor(X,Y,TS[:,:], cmap=mycmap,vmin =min(TS[:,:].ravel()), vmax=max(TS[:,:].ravel()))
     plt.colorbar()
     plt.show()
     
-    
+if fig4opt_cliq:
     filename="Data_Fig4opt_cliq"
     set_constants(filename)
     data=load_data(filename) 
@@ -490,12 +520,62 @@ if fig4opt:
     ax.set_zlabel(r"$H$")
     plt.show()
 
-    mycmap = plt.cm.get_cmap('Greys')
+    mycmap = plt.cm.get_cmap('seismic')
     #mycmap.set_under('w')
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.xlim([1,10])
-    plt.ylim([1,20])
+    #plt.xscale("log")
+    #plt.yscale("log")
+    plt.xlabel(r"$N_{cliques}$")
+    plt.ylabel(r"$S_n$")
+    plt.xlim([np.min(X),np.max(X)])
+    plt.ylim([np.min(Y),np.max(Y)])
     plt.pcolor(X,Y,TS[:,:], cmap=mycmap,vmin =min(TS[:,:].ravel()), vmax=max(TS[:,:].ravel()))
     plt.colorbar()
     plt.show()
+    
+if fig4opt_comp:
+    filename="Data_Fig4opt_comp"
+    set_constants(filename)
+    data=load_data(filename) 
+    X=data['PC_ncliq']
+    Y=data['PC_lambda']
+    TS=data['\\tau_s^R']
+    H=data['Hdist']
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$N_{cliques}$")
+    plt.ylabel(r"$\lambda$")
+#    ax.set_zlim(bottom=0, top=.01)
+    ax.scatter(X.ravel(),Y.ravel(),TS[:,:].ravel())
+    ax.set_zlabel(r"$\tau_s^r$")
+    plt.show()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$N_{cliques}$")
+    plt.ylabel(r"$\lambda$")
+    ax.scatter(X.ravel(),Y.ravel(),H[:,:].ravel())
+    ax.set_zlabel(r"$H$")
+    plt.show()
+
+    mycmap = plt.cm.get_cmap('Greys')
+    #mycmap.set_under('w')
+    #plt.xscale("log")
+    #plt.yscale("log")
+    plt.xlim([np.min(X),np.max(X)])
+    plt.ylim([np.min(Y),np.max(Y)])
+    plt.pcolor(X,Y,TS[:,:], cmap=mycmap,vmin =min(TS[:,:].ravel()), vmax=max(TS[:,:].ravel()))
+    plt.colorbar()
+    plt.show()
+    
+if rndcliq:
+    filename="Data_rndcliq"
+    set_constants(filename)
+    data=load_data(filename) 
+    print data["H"].shape
+    occur=data["occur"]
+    print occur
+    sizes=np.array([i for i,j in enumerate(occur) if j!=0]) #clique sizes with non-zero occurrence
+    H=data["H"][sizes]
+    TS=data["TS"][sizes]
+    plot(sizes+1,H)
+    plot(sizes+1,TS)

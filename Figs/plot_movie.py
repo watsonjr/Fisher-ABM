@@ -10,7 +10,10 @@ maxpic=500 #Maximum number of pictures made
 
 
 ## Remove old figs
-os.system("rm -f ./Movie/*.{}".format(imgformat) )
+try:
+    call("rm -f ./Movie/*.{}".format(imgformat),shell=True )
+except:
+    print("Your OS is not supported by my awesome movie plotter.")
 
 ## Load in data
 Fish = np.load("../Data/Data_fish.npy")
@@ -65,5 +68,7 @@ for i in np.arange(0,min(maxpic,Fish.shape[2])):
     print(i)
     plt.close('all')
 
-call("ffmpeg -r 18  -i Movie/Fig_%05d.{} movie.mp4".format(imgformat),shell=True)
-
+try:
+    call("ffmpeg -r 18  -i Movie/Fig_%05d.{} movie.mp4".format(imgformat),shell=True)
+except:
+    pass

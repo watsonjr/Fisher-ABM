@@ -4,11 +4,19 @@
 
 ##################### BASIC TESTS
     
-function do_timingtest()
+function do_timingtest(fsave=true)
     println("Timing test")
-    PRM.PC_rp = 0.72; # choose random change in walk
+
+    PRM.PC_n = 10;
+    PRM.PC_f=PRM.GRD_mx*0.04
+    PRM.PF_sig=PRM.GRD_mx*0.04
+    PRM.PS_p = 0.01;
+    PRM.PC_q = .1;
+    PRM.PS_n = 10;
+    PRM.PC_rp = fnc_optimal_PCrp();
+
     school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
-    FLAGS["save"]=true
+    FLAGS["save"]=fsave
     FLAGS["measure_frac"]=true
     @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1,OUT);
     #npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
@@ -106,8 +114,8 @@ end
 function do_fig3()
     ###### Test performance as a function of tau_l and tau_h
     ## basic values of C_f and F_sig
-    PRM.PC_f=PRM.GRD_nx*0.03
-    PRM.PF_sig=PRM.GRD_nx*0.04
+    PRM.PC_f=PRM.GRD_mx*0.03
+    PRM.PF_sig=PRM.GRD_mx*0.04
     PRM.PC_n = 2; #2 fishers!
     PRM.PS_n = int(round(.10 / (pi *PRM.PF_sig^2 /PRM.GRD_nx^2 ) )) ;
     println("Performance as a function of tau_l and tau_h")
@@ -130,6 +138,7 @@ function do_fig3()
             PRM.PC_lambda=0;
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             FLAGS["measure_frac"]=true
+            FLAGS["measure_fij"]=true
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
@@ -140,6 +149,7 @@ function do_fig3()
             PRM.PC_lambda=1;
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             FLAGS["measure_frac"]=true
+            FLAGS["measure_fij"]=true
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
@@ -162,8 +172,8 @@ function do_fig4opt()
 
     PRM.PC_n = 10;
     PRM.PC_ncliq = 1;
-    PRM.PC_f=PRM.GRD_nx*0.05
-    PRM.PF_sig=PRM.GRD_nx*0.05
+    PRM.PC_f=PRM.GRD_mx*0.05
+    PRM.PF_sig=PRM.GRD_mx*0.05
     PRM.PS_p = 0.001;
     PRM.PC_q = 0.01;
     PRM.PC_rp = fnc_optimal_PCrp();
@@ -171,14 +181,15 @@ function do_fig4opt()
         for j=1:length(NS)
             PRM.PC_lambda = RP[i];
             PRM.PS_n = NS[j];
+            taus1=fnc_taus1()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             FLAGS["measure_frac"]=true
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result[i,j] = RP[i], NS[j],mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean( cons.measure["Hdist"]),mean( cons.measure["f2"]);
+            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean( cons.measure["Hdist"]),mean( cons.measure["f2"]);
             println("$i $j")
         end
     end
-    save_results(result,R"PC_lambda PS_n \tau_s^R Hrate Hdist f2","Data_Fig4opt",PRM)
+    save_results(result,R"PC_lambda PS_n taus1 \tau_s^R Hrate Hdist f2","Data_Fig4opt",PRM)
 
 end
 
@@ -189,10 +200,10 @@ function do_fig4opt_cliq()
     result = cell(size(RP,1),size(NS,1));
 
     PRM.PC_n = 10;
-    PRM.PC_f=PRM.GRD_nx*0.05
-    PRM.PF_sig=PRM.GRD_nx*0.05
+    PRM.PC_f=PRM.GRD_mx*0.05
+    PRM.PF_sig=PRM.GRD_mx*0.05
     PRM.PS_p = 0.001;
-    PRM.PC_q = 0.01;
+    PRM.PC_q = 0.1;
     PRM.PF_n = 50;
     PRM.PC_lambda = 1.;
     PRM.PC_rp = fnc_optimal_PCrp();
@@ -200,51 +211,101 @@ function do_fig4opt_cliq()
         for j=1:length(NS)
             PRM.PC_ncliq = RP[i];
             PRM.PS_n = NS[j];
+            taus1=fnc_taus1()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             FLAGS["measure_frac"]=true
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result[i,j] = RP[i], NS[j],mean(cons.measure["Ts"]),mean(cons.measure["Hrate"]),mean( cons.measure["Hdist"]),mean( cons.measure["f2"]);
+            result[i,j] = RP[i], NS[j],taus1,mean(cons.measure["Ts"]),mean(cons.measure["Hrate"]),mean( cons.measure["Hdist"]),mean( cons.measure["f2"]);
             println("$i $j")
         end
     end
-    save_results(result,R"PC_ncliq PS_n \tau_s^R Hrate Hdist f2","Data_Fig4opt_cliq",PRM)
+    save_results(result,R"PC_ncliq PS_n taus1 \tau_s^R Hrate Hdist f2","Data_Fig4opt_cliq",PRM)
 end
 
 
-function do_rndcliq()
-    println("Optimal clique size vs all other clique sizes")
-    PRM.PC_n=30
-    PRM.PC_f=PRM.GRD_nx*0.04
-    PRM.PF_sig=PRM.GRD_nx*0.04
-    PRM.PS_n=20
-    PRM.PC_lambda = 1.
+function do_fig4opt_comp()
+    println("Cliques vs Lambda")
+    RP = [1,2,3,5,10];
+    LAM = linspace(0.,1.,5);
+    result = cell(size(RP,1),size(LAM,1));
 
+    PRM.PC_n = 10;
+    PRM.PC_f=PRM.GRD_mx*0.04
+    PRM.PF_sig=PRM.GRD_mx*0.04
+    PRM.PS_p = 0.001;
+    PRM.PC_q = 1.;
+    PRM.PS_n = 10;
+    PRM.PF_n = 1000;
+    PRM.PC_rp = fnc_optimal_PCrp();
+    tauh=PRM.PF_n/PRM.PC_q
+    taul=1./PRM.PS_p
+    taus=fnc_taus1()
+    println("tau_h/tau_s: $(tauh/taus) tau_l/tau_s:  $(taul/taus)")
+    for i = 1:length(RP)
+        for j=1:length(LAM)
+            PRM.PC_ncliq = RP[i];
+            PRM.PC_lambda = LAM[j];
+            school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+            FLAGS["measure_frac"]=true
+            make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+            result[i,j] = RP[i], LAM[j],mean(cons.measure["Ts"]),mean(cons.measure["Hrate"]),mean( cons.measure["Hdist"]),mean( cons.measure["f2"]);
+            println("$i $j")
+        end
+    end
+    save_results(result,R"PC_ncliq PC_lambda \tau_s^R Hrate Hdist f2","Data_Fig4opt_comp",PRM)
+end
+
+function do_rndcliq()
+    println("Optimal clique size vs all other sizes")
+    PRM.PC_lambda = 1.
+    PRM.PC_n = 20;
+    PRM.PC_f=PRM.GRD_mx*0.04
+    PRM.PF_sig=PRM.GRD_mx*0.04
+    PRM.PS_p = 0.001;
+    PRM.PC_q = 1.;
+    PRM.PS_n = 10;
+    PRM.PF_n = 1000;
+    
+    PRM.PC_rp = fnc_optimal_PCrp();
+    tauh=PRM.PF_n/PRM.PC_q
+    taul=1./PRM.PS_p
+    taus=fnc_taus1()
+    println("tau_h/tau_s: $(tauh/taus) tau_l/tau_s:  $(taul/taus)")
+    
     occur=zeros(PRM.PC_n) #occurrence of a clique size
     H=zeros(PRM.PC_n) #average catch rate per clique size
     TS=zeros(PRM.PC_n) #average search time per clique size
-    for i = 1:1000
-        part=pycall(pypartition["random_partition"],PRM.PC_n) #random partition of PC_n
+    for i = 1:300
+        part=pycall(pypartition["random_partition"],PyAny,PRM.PC_n) #random partition of PC_n
         cliq=cell(length(part)) #composition of the cliques
         idx=1
-        for p in part
-            cliq[p]=idx:idx+p-1
-            idx+=p
+        for p in 1:length(part)
+            cliq[p]=idx:idx+part[p]-1
+            idx+=part[p]
         end
         #Run
-        school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium(cliques=cliq);
-        FLAGS["measure_frac"]=true
-        make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-        for p in part
+        println(i)
+        school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium(cliq);
+        make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1);
+        for p in 1:length(part)
             #for each element in the partition
-            occur[p]+=1
-            H[p]+=mean(cons.measure["Hrate"][cliq[p]])
-            TS[p]+=mean(cons.measure["TS"][cliq[p]])
+            occur[part[p]]+=1
+            H[part[p]]+=mean(cons.measure["Hrate"][cliq[p]])
+            TS[part[p]]+=mean(cons.measure["Ts"][cliq[p]])
         end
     end
-    H/=occur
-    TS/=occur
-    result=hcat(1:PC_n,H,TS,occur)'
-    save_results(result,R"size H TS occur","Data_Fig4opt_cliq",PRM)
+    for p=1:PRM.PC_n
+        if occur[p]>0
+            H[p]/=occur[p]
+            TS[p]/=occur[p]
+        end
+    end
+    coll=hcat(H,TS,occur)
+    result=cell(size(coll,1))
+    for i =1:size(coll,1)
+        result[i]=coll[i,:]
+    end
+    save_results(result,R"H TS occur","Data_rndcliq",PRM)
 end
 
 

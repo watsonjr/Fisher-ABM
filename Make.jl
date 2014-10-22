@@ -18,21 +18,28 @@ include("sub_routines.jl");
 include("Experiments.jl");
 
 #### Switches for various experiments below
-timingtest=false
-firstpass=false
-fig2a=true
-fig2b=true
-fig3=true
-fig4opt=true
-fig4opt_cliq=true
+
+timingtest=false #timing & profiling
+firstpass=false #Benichou test: time of first passage
+fig2a=false #Fig2a: search time 1 fisher vs C_rp
+fig2b=false #Fig2b: search time 1 fisher vs Cf, Fsigma 
+fig3=false #Fig3: VOI against tau_h/tau_s, tau_l/tau_s
+fig4opt=false  #optimal lambda
+fig4opt_cliq=false #optimal nb cliques
+fig4opt_comp=false #cliques vs lambda
+rndcliq=true  #random partition of fishers into cliques
 
 
 #### Basic timing/profiling test for a single run
 
 if timingtest
-    #do_timingtest()
-    @profile do_timingtest()
-    Profile.print(format=:flat)
+    println("First run")
+    do_timingtest(false)
+    println("Then profiling (now that everything is compiled)")
+    @profile do_timingtest(false)
+    logfile=open("log.dat","w")
+    Profile.print(logfile,format=:flat)
+    close(logfile)
 end
 
 
@@ -71,6 +78,16 @@ end
 if fig4opt_cliq
     reinit_parameters()
     do_fig4opt_cliq()
+end
+
+if fig4opt_comp
+    reinit_parameters()
+    do_fig4opt_comp()
+end
+
+if rndcliq
+    reinit_parameters()
+    do_rndcliq()
 end
 
 

@@ -45,9 +45,27 @@ function fnc_optimal_PCrp()
     @set_constants PRM
     v=PC_v
     a=PC_f+PF_sig#min(PF_sig,PF_n*PC_f/(2*pi) )
-    b=a+ GRD_mx2 /sqrt(PS_n) 
-    tau2=max(.99,(a/v * sqrt( log(b/a) -1./2.)))
+    b=(a+GRD_mx/sqrt(PS_n) )/2.
+    #println("$a $b $(PS_n) $(PF_sig) $(PS_n*pi*PF_sig^2/GRD_mx^2) ")
+    tau2=max(1.01,(a/v * sqrt( log(b/a) -1./2.)))
     return 1.-1./tau2
+end
+
+#### Benichou estimate for tau_s of a single fisher
+function fnc_taus1()
+    @set_constants PRM
+    v=PC_v
+    a=PC_f+PF_sig
+    b=(a+GRD_mx/sqrt(PS_n) )/2.
+    t2=1./(1.-PC_rp) #avg time of straight flight
+    t1=1./(PC_rp) #avg time of search
+    xy=sqrt(2)/v/t2
+    x=a*xy
+    y=b*xy
+    result1=xy^1/a*t1*(b^2-a^2)^2*besseli(0,x)/besseli(1,x)
+    result2=xy^2 *t1*(4*b^4*log(b/a) + (b^2-a^2)*(a^2-3*b^2+8/xy^2))
+    result3= result1 + result2/4.
+    return (t1+t2)/(2*t1*b^2) * result3
 end
 
 
@@ -75,7 +93,7 @@ function fnc_tau(dTs,dHs,cons,EVENTS,FLAGS,turns)
 
     for I=EVENTS["left_school"]
         ts[I]=0
-        if FLAGS["measure_frac"]
+        if FLAGS["measure_H"]
             dHs[I]=-cons.H[I]/turns +10. #store catch rate when leaving school (1)
         end
     end
@@ -90,7 +108,7 @@ function fnc_tau(dTs,dHs,cons,EVENTS,FLAGS,turns)
         
         dTs[I] = abs(Ts[I]-Ts_old)/Ts[I]; # fractional change in mean
         ts[I] = 1; # reset how long it took to find school
-        if FLAGS["measure_frac"]
+        if FLAGS["measure_H"]
             if cons.H[I]>1
                 cons.measure["Hrate"][I]=cons.H[I]/turns
                 dHs[I]=abs(1+ (dHs[I]-10.)/cons.H[I]*turns) 
@@ -473,6 +491,8 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         #Measure time spent in school
         f1=cons.measure["f1"] #Time spent by 1 fisher in a school
         f2=cons.measure["f2"] #Time spent by 2+ fishers in the same school
+    end
+    if FLAGS["measure_fij"]
         fij=cons.measure["fij"] #Time spent by 2 fishers within distance x
     end
 
@@ -537,9 +557,11 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
             if schools[i]!=0 && any(schools.==schools[i])
                 f2[i]+=1
             end
-            for j=1:PC_n
-                if i!=j && fnc_dist(cons.x[i,:],cons.x[j,:])<PC_f+2*PF_sig
-                    fij[i]+=1
+            if FLAGS["measure_fij"]
+                for j=1:PC_n
+                    if i!=j && fnc_dist(cons.x[i,:],cons.x[j,:])<PC_f+2*PF_sig
+                        fij[i]+=1
+                    end
                 end
             end
         end

@@ -1,7 +1,7 @@
 
 
 ###### PRAMETERS / CONSTANTS for running the model to equilibrium
-function init_equilibrium(cliq=None)
+function init_equilibrium(cliq=[])
 #### Initialize fish
 #! all we need are fish location (x,y)
 #! the school location (x,y)
@@ -55,7 +55,7 @@ cons_v   = ones(PC_n) .* PC_v;
 cons_sn  = zeros(PC_n,PC_n) #.*max( eps(),PC_lambda); 
 #Cliques
 scliq=floor(PC_n/PC_ncliq) #clique size, first approx
-if cliq ==None
+if length(cliq)==0
     cliq=cell(PC_ncliq)
     for c=1:PC_ncliq
         cliq[c]=[(c-1)*scliq+ n  for n=1:scliq ]
@@ -67,6 +67,7 @@ if cliq ==None
         n+=1
         i+=1
     end
+end
 for c in cliq
     for i in c
         for j in c
@@ -116,8 +117,13 @@ OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H);
  # rtree: Use r-tree to find nearest neighbor among fish
  # save: Print out positions of all fishers and fish to make movies
  # implicit_fish: instead of modelling discrete fish, schools are disks
+ # spying: unidirectional communciation allowed
+ # measure_frac: measure fraction of time spent in school
+ # measure_fij: measure fraction of time spent close to other fishers (SLOW, requires measure_frac)
+ # measure_H: measure catch rate
  FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true,"save"=>false,
-    "spying"=>false,"implicit_fish"=>true,"measure_frac"=>false]
+    "spying"=>false,"implicit_fish"=>true,
+    "measure_frac"=>false,"measure_fij"=>false,"measure_H"=>true]
 
 
 #==== Fishtree =====#

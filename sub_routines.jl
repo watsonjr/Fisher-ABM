@@ -7,20 +7,20 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2,OUT=None)
  #! RUN
  #=== Possible loop conditions ==============#
  
- cond1=(fish,cons,dTs,EVENTS)-> (minimum(cons.H) .< (PF_n*PS_n.*5))
+ cond1=(fish,cons,dTs,dHs,EVENTS)-> (minimum(cons.H) .< (PF_n*PS_n.*5))
  #! while min of cumulative harvest is less than all fish in the region
  #! stops when every fisherman has caught the # fish in the
  
  dTs = ones(PC_n);
- cond2=(fish,cons,dTs,EVENTS)->(maximum(dTs) > .001 || minimum(cons.measure["ns"]) < 500)
+ cond2=(fish,cons,dTs,dHs,EVENTS)->(maximum(dTs) > .001 || minimum(cons.measure["ns"]) < 500)
  #! while difference in estimated Tau_s is greater that 0.1%
  #! and the minimum number of schools visited is <500 
  
  dHs = ones(PC_n);
- cond3=(fish,cons,dTs,EVENTS)->(maximum(dHs) > .01 || minimum(cons.measure["ns"]) < 500)
+ cond3=(fish,cons,dTs,dHs,EVENTS)->(maximum(dHs) > .01 || minimum(cons.measure["ns"]) < 500)
  #! Same as cond2 with estimated catchrate
  
- cond4=(fish,cons,dTs,EVENTS)->isempty(EVENTS["found_school"]) #( maximum(cons.H) < 1)
+ cond4=(fish,cons,dTs,dHs,EVENTS)->isempty(EVENTS["found_school"]) #( maximum(cons.H) < 1)
  #! stop as soon as a school has been found#old=catch has been made (useful for first-passage time)
  
  whilecond=[cond1,cond2,cond3,cond4][stopflag]
@@ -38,10 +38,11 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2,OUT=None)
     cons.measure["f1"]=zeros(PC_n)
     cons.measure["f2"]=zeros(PC_n)
     cons.measure["fij"]=zeros(PC_n)
+ end
+ if FLAGS["measure_H"]
     cons.measure["Hrate"]=zeros(PC_n)
  end
-
- while whilecond(fish,cons,dTs,EVENTS)
+ while whilecond(fish,cons,dTs,dHs,EVENTS)
     turns+=1
     ## Distances
     #D,Dx,Dy,cons.MI = fnc_distance(fish.fx,cons.x,cons.MI);
