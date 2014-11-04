@@ -46,8 +46,12 @@ function fnc_optimal_PCrp()
     v=PC_v
     a=PC_f+PF_sig#min(PF_sig,PF_n*PC_f/(2*pi) )
     b=(a+GRD_mx/sqrt(PS_n) )/2.
-    #println("$a $b $(PS_n) $(PF_sig) $(PS_n*pi*PF_sig^2/GRD_mx^2) ")
-    tau2=max(1.01,(a/v * sqrt( log(b/a) -1./2.)))
+    if log(b/a)>.5
+        tau2=max(1.01,(a/v * sqrt( log(b/a) -1./2.)))
+    else
+        println("$a $b $(PS_n) $(PF_sig) $(PS_n*pi*PF_sig^2/GRD_mx^2) ")
+        return 0.001
+    end
     return 1.-1./tau2
 end
 
@@ -287,7 +291,7 @@ function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
         elseif MI[i] == 0 # if steaming
             if rand() < (1-PC_rp) # maybe switch to searching
                 MI[i] = 1
-                V[i]=0
+                V[i]=PC_v/3.
             end
         end
     end
@@ -318,9 +322,9 @@ function fnc_contact(school,fish,cons,fishtree,EVENTS,FLAGS)
             RN = rand(2,1);
             dx = fnc_dist(Cx[i,:],Cx[j,:])  #distance between fishermen
 
-            if FLAGS["spying"] && dx < PC_spy
+            if FLAGS["spying"] 
                 #Directional exchanges are possible within spying radius PC_spy
-                if RN[1] < f1
+                if RN[1] < f1 && dx < PC_spy
                     CN[i,j] = 1;
                     push!(EVENTS["spying"],i)
                     push!(EVENTS["in_contact"],i)
@@ -447,7 +451,7 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
                 #Dxy = dxy[id,:] + (randn(1,2).*PC_r) # bendy walk
                 #Dxy = Dxy ./ norm(Dxy)
                 Dxy = dxy[id,:]; # straight line
-                V[id] = PC_v # fast speed
+                #V[id] = PC_v # fast speed
             else # search/tumble
                 #angle = 360*rand();
                 #dx  = cosd(angle); dy  = sind(angle);
@@ -455,7 +459,7 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
                 #Dxy = dxy[id,:] + (randn(1,2).*PC_r2)
                 Dxy = randn(1,2); # random walk
                 Dxy = Dxy ./ norm(Dxy)
-                V[id] = PC_v / 3 # slow speed
+                #V[id] = PC_v *0 # slow speed
             end
         end
         # slow speed
@@ -503,18 +507,12 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
             
             if FLAGS["measure_frac"]
                 #Add to time spent in school
-                f1[i]+=1
-                if FLAGS["implicit_fish"] #detect school
-                    sch= tgt
-                else
-                    sch=fish.fs[tgt]
-                end
-                schools[i]=sch
+                schools[i]=get_school(tgt,fish,FLAGS)
             end
             
             if FLAGS["implicit_fish"]
                 #If the school is a simple disk with a population variable
-                cons.V[i]=0
+                cons.V[i]=0 #stop ship (maybe not necessary)
                 school.pop[tgt]-=PC_q #use probability of catch as depletion rate
                 cons.H[i]+=PC_q
             else
@@ -547,19 +545,22 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         end
     end
     
-    if FLAGS["measure_frac"] #Fraction of time spent by two fishers in the same school
-        #for i = EVENTS["targeting"]
-        #    if any(schools.==schools[i])
-        #        f2[i]+=1
-        #    end
-        #end
+    if FLAGS["measure_frac"] 
+        #Fraction of time spent by:
+        #f1: one fisher in a school
+        #f2: two fishers in the same school
+        #fij: two fishers within "school size" of each other
         for i=1:PC_n
-            if schools[i]!=0 && any(schools.==schools[i])
-                f2[i]+=1
+            if schools[i]!=0
+                if sum(schools.==schools[i])>1
+                    f2[i]+=1
+                else
+                    f1[i]+=1
+                end
             end
             if FLAGS["measure_fij"]
                 for j=1:PC_n
-                    if i!=j && fnc_dist(cons.x[i,:],cons.x[j,:])<PC_f+2*PF_sig
+                    if i!=j && fnc_dist(cons.x[i,:],cons.x[j,:])<PC_f+PF_sig
                         fij[i]+=1
                     end
                 end
@@ -618,6 +619,7 @@ function fnc_move(school,fish,cons,fishtree,EVENTS,FLAGS)
          if cons.Dmin[f]>cons.V[f]
              cons.Dmin[f]-=cons.V[f]
          else
+             #Slow down approach to avoid overshooting the target
              cons.V[f]/=10
              cons.Dmin[f]-=cons.V[f]
          end

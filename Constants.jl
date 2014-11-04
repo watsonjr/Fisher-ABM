@@ -8,11 +8,11 @@ GRD_nx = 100; # grid size (number)
 GRD_dx = 1; # grid cell size (km)
 GRD_mx = GRD_nx.*GRD_dx; # grid size (km)
 GRD_mx2 = GRD_mx / 2 # half grid size (used in periodic bnd)
-GRD_x  = [0:GRD_dx:GRD_mx];
+#GRD_x  = [0:GRD_dx:GRD_mx];
 
 ##### School parameters
-PS_n   = 20 # number of schools
-PS_p   = 0.00; # probability school will move (#do I need this)
+PS_n   = 1 # number of schools
+PS_p   = 0.001; # probability school will move (#do I need this)
 
 #### Fish parameters
 PF_n	 = 10 # number of fish per school
@@ -36,7 +36,7 @@ type Param
     GRD_dx::Float64
     GRD_mx::Float64
     GRD_mx2::Float64
-    GRD_x::Array{Int}
+#    GRD_x::Array{Int}
     PS_n::Int 
     PS_p::Float64
     PF_n::Int
@@ -54,7 +54,7 @@ end
 
 
 PRM=Param(
-GRD_nx, GRD_dx, GRD_mx, GRD_mx2, GRD_x, 
+GRD_nx, GRD_dx, GRD_mx, GRD_mx2, #GRD_x, 
 PS_n, PS_p, PF_n, PF_sig,
  PC_n, PC_v, PC_h, PC_rp, PC_f,  PC_q, PC_lambda,PC_ncliq, PC_spy)
 
@@ -68,7 +68,7 @@ macro set_constants(struct)
     #
     # We want to build up a block of expressions.
     block = Expr(:block)
-    for f in [:GRD_nx,:GRD_dx,:GRD_mx,:GRD_mx2,:GRD_x,
+    for f in [:GRD_nx,:GRD_dx,:GRD_mx,:GRD_mx2,
             :PS_n, :PS_p, :PF_n, :PF_sig,
             :PC_n, :PC_v, :PC_h, :PC_rp, :PC_f,
             :PC_q, :PC_lambda, :PC_ncliq,:PC_spy]

@@ -43,6 +43,7 @@ type Output
     schl_xy::Array{Float64}
     schl_pop::Array{Float64}
     cons_H::Array{Float64}
+    cons_MI::Array{Float64}
 end
 
 #### Rtree for localizing nearest neighbor among fish

@@ -7,7 +7,7 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2,OUT=None)
  #! RUN
  #=== Possible loop conditions ==============#
  
- cond1=(fish,cons,dTs,dHs,EVENTS)-> (minimum(cons.H) .< (PF_n*PS_n.*5))
+ cond1=(fish,cons,dTs,dHs,EVENTS)-> (minimum(cons.H) < (PF_n*PS_n.*.5))
  #! while min of cumulative harvest is less than all fish in the region
  #! stops when every fisherman has caught the # fish in the
  
@@ -83,6 +83,7 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2,OUT=None)
          OUT.schl_xy = cat(3,OUT.schl_xy,school.x);
          OUT.schl_pop  = cat(2,OUT.schl_pop,school.pop);
          OUT.cons_H  = cat(2,OUT.cons_H,cons.H);
+         OUT.cons_MI = cat(2,OUT.cons_MI,cons.MI);
      end
      
      #####  Print out events as they happen
@@ -99,6 +100,12 @@ if ST == 1
     npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
     npzwrite("./Data/Data_cluspop.npy", OUT.schl_pop)
     npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+    npzwrite("./Data/Data_MI.npy", OUT.cons_MI)
+    fout=open("./Data/Data_figs.dat", "w")
+    for f in names(PRM)
+        write(fout,"$f    $(getfield(PRM,f))\n" )
+    end
+    close(fout)
 end
 
 
@@ -107,6 +114,8 @@ if FLAGS["measure_frac"]
     cons.measure["f1"]/=turns
     cons.measure["f2"]/=turns
     cons.measure["fij"]/=turns
+end
+if FLAGS["measure_H"]
     cons.measure["Hdist"]=cons.H ./ cons.measure["distance"]
 end
 

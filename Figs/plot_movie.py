@@ -21,11 +21,12 @@ Cons = np.load("../Data/Data_fishers.npy")
 Clus = np.load("../Data/Data_clusters.npy")
 Pop = np.load("../Data/Data_cluspop.npy")
 Harv = np.load("../Data/Data_harvest.npy")
+MI = np.load("../Data/Data_MI.npy")
 
 implicit_fish=True
 
 #GET PARAMETER VALUES
-fcst=open("../Data/Data_params.dat","r")
+fcst=open("../Data/Data_figs.dat","r")
 for l in fcst:
     line=l.split()
     if len(line)>1:
@@ -58,7 +59,8 @@ for i in np.arange(0,min(maxpic,Fish.shape[2])):
     else:
         plt.scatter(xl,yl,s=3.14*convert_dist(ax,PF_sig)**2* Pop[:,i]/PF_n,alpha=.4 );
     plt.scatter(xc,yc,alpha=.3,color=[1,0,0],s=3.14*convert_dist(ax,PC_f)**2);
-    plt.scatter(xc,yc,alpha=1,c=[[1,(ca%PF_n)/PF_n,(ca%PF_n)/PF_n] for ca in Harv[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
+    #plt.scatter(xc,yc,alpha=1,c=[[1,(ca%PF_n)/PF_n,(ca%PF_n)/PF_n] for ca in Harv[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
+    plt.scatter(xc,yc,alpha=1,c=[[1,0,0] if mi else [1,1,1] for mi in MI[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
     plt.xticks([]);
     plt.yticks([]);
 
@@ -69,6 +71,6 @@ for i in np.arange(0,min(maxpic,Fish.shape[2])):
     plt.close('all')
 
 try:
-    call("ffmpeg -r 18  -i Movie/Fig_%05d.{} movie.mp4".format(imgformat),shell=True)
+    call("ffmpeg -y -r 18  -i Movie/Fig_%05d.{} movie.mp4".format(imgformat),shell=True)
 except:
     pass

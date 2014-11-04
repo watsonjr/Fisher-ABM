@@ -22,19 +22,22 @@ include("Experiments.jl");
 timingtest=false #timing & profiling
 firstpass=false #Benichou test: time of first passage
 fig2a=false #Fig2a: search time 1 fisher vs C_rp
-fig2b=false #Fig2b: search time 1 fisher vs Cf, Fsigma 
-fig3=false #Fig3: VOI against tau_h/tau_s, tau_l/tau_s
+fig2b=true #Fig2b: search time 1 fisher vs Cf, Fsigma 
+fig2c=true #Fig2b: search time 1 fisher vs S_p, C_q 
+fig3=true #Fig3: VOI against tau_h/tau_s, tau_l/tau_s
 fig4opt=false  #optimal lambda
 fig4opt_cliq=false #optimal nb cliques
 fig4opt_comp=false #cliques vs lambda
-rndcliq=true  #random partition of fishers into cliques
+rndcliq=false  #random partition of fishers into cliques
+worst=false #like fig3 + iteration over lambda to find min(VOI)
 
+spying=false #spying radius
 
 #### Basic timing/profiling test for a single run
 
 if timingtest
     println("First run")
-    do_timingtest(false)
+    do_timingtest(true)
     println("Then profiling (now that everything is compiled)")
     @profile do_timingtest(false)
     logfile=open("log.dat","w")
@@ -64,6 +67,11 @@ if fig2b
     do_fig2b()
 end
 
+if fig2c
+    reinit_parameters()
+    do_fig2c()
+end
+
 if fig3
     reinit_parameters()
     do_fig3()
@@ -90,6 +98,15 @@ if rndcliq
     do_rndcliq()
 end
 
+if worst
+    reinit_parameters()
+    do_worst()
+end
+
+if spying
+    reinit_parameters()
+    do_spying()
+end
 
 #################### OLDER EXPERIMENTS #############################
 

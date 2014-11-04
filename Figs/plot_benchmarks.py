@@ -1,15 +1,9 @@
-import numpy as np
-import scipy.special as SS
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from math import *
-import os
-from datatools import *
+from plot_benchcore import *
 
-#Humongous plotter for various basic experiments
-#(written organically, so stylistically criticizable)
+#Plotter: numerical benchmarks
+#see plot_bench_analytical for results that
+#are significant only for the analytics
 
-path="../Data/"
 
 #### SWITCHES FOR WHICH FIGURES TO PLOT ####
 
@@ -17,180 +11,15 @@ firstpass=0
 firstpass_ns=0
 fig2a=0
 fig2b=0
-fig3=0 #Fig3 for tausr
-fig3H=0 #Fig3 for catch rate
-fig3f=0 #Other quantities related to fig3 (analytics)
+fig3=1 #Fig3 for tausr
+fig3H=1 #Fig3 for catch rate
+fig3f=1 #Other quantities related to fig3 (analytics)
 fig4opt=0 #optimal lambda
-fig4opt_cliq=1 #optimal ncliques
+fig4opt_cliq=0 #optimal ncliques
 fig4opt_comp=0 #cliques vs lambda
-rndcliq=1  #random partition of fishers into cliques
-
-#=========== Extraction of constants from julia code ==================
-
-if 0:
-    ####OLD
-    fcst=open("../Constants.jl","r")
-    constants={}
-    for l in fcst:
-        line=l.split()
-        if len(line)>1 and "=" in line[1]:
-            try:
-                constants[line[0]]=eval(line[2].replace(';',''))
-            except Exception as e:
-                print e
-    GRD_mx = constants["GRD_nx"]*constants["GRD_dx"]
-    fcst.close()
-    
-constants={}
-def set_constants(filename):
-    if not ".dat" in filename:
-        filename=filename+".dat"
-    fcst=open(os.path.join(path,filename ),"r")
-    #constants={}
-    global constants
-    for l in fcst:
-        line=l.split()
-        if line and '#' in line[0]:
-            continue
-        if len(line)>1:
-            exec("{} = {}".format(line[0],line[1]))
-            exec("constants['{}'] = {}".format(line[0],line[1]))
-    fcst.close()
-
-def load_data(filename):
-    if not ".npy" in filename:
-        filename=filename+".npy"
-    data= np.load(os.path.join(path,filename ))
-    #get headers
-    headers=[]
-    fcst=open(os.path.join(path,filename.replace("npy","dat" )),"r")
-    for l in fcst:
-        line=l.split()
-        if line and '#' in line[0]:
-            line=[x.strip().replace('#','') for x in line ]
-            headers=[ x for x in line if x]
-            break
-    datadict={}
-    dim=len(data.shape)
-    data=np.transpose(data,[dim-1]+range(dim)[:-1] ) #transpose to get dataset as first index
-    for i,h in enumerate(headers):
-        datadict[h]=data[i]
-    return datadict
-
-set_constants("Data_params")
-
-def get_constants(**kwargs):
-    args=[ kwargs[i] if i in kwargs else constants[i] for i in 
-        ("PC_rp","PC_f","PC_q","PF_sig" ,"PF_n" ,"GRD_nx","GRD_dx","PC_v","PS_p","PS_n")]
-    return args
-
-#=========== Analytical expressions ==================
-
-def domain_size(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
-    b=(PF_sig+PC_f+GRD_nx*GRD_dx/sqrt(PS_n) )/2.
-    return b
-
-def tausr_base(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
-    v=PC_v
-    a=(PC_f+PF_sig) #min(PF_sig,PF_n*PC_f/(2*pi) )  #This correction applies for explicit fish
-    b=domain_size(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n)
-    PC_rp=max(PC_rp,0.01)
-    t2=1./(1.-PC_rp) #avg time of straight flight (CHECKED NUMERICALLY)
-    t1=1./(PC_rp) #avg time of wait (CHECKED NUMERICALLY)
-    if log(b/a)>.5:
-        t2opt= (a/v * sqrt( log(b/a)-1./2.))
-    else:
-        t2opt=0.0001
-    popt=1/t2opt
-    return v,a,b,t1,t2
-    
-def p_opt(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n):
-    v=PC_v
-    a=PC_f+PF_sig#min(PF_sig,PF_n*PC_f/(2*pi) )
-    b=domain_size(PC_rp,PC_f,PC_q,PF_sig ,PF_n,GRD_nx,GRD_dx,PC_v,PS_p,PS_n)
-    if log(b/a)>.5:
-        t2opt= (a/v * sqrt( log(b/a)-1./2.))
-    else:
-        t2opt=0.0001
-    #if 1./t2opt>1:
-    #    print (a,b,v,t2opt)
-    popt=min(.98,1./t2opt)
-    return popt
-
-def tausr1(*args):  #Static mode
-    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p,PS_n=args
-    v,a,b,t1,t2=tausr_base(*args)
-    k=1./(1.-PC_q) #rate of catching, to specify better
-    xy=sqrt( 2*k*t1/(1+k*t1) )/v/t2
-    x=a*xy
-    y=b*xy
-    result1=xy**1/a*(1+k*t1)*(b**2-a**2)**2*SS.iv(0,x)/SS.iv(1,x)
-    result2=  8*b**2 + xy**2 * (1+k*t1)*(4*b**4*log(b/a) + (b**2-a**2)*(a**2-3*b**2+8/xy**2))
-    result3= result1+ result2/4.
-    result4= (t1+t2)/(2*k*t1*b**2) * result3
-    return result4
-    
-def tausr1b(*args):  #Static mode, infinite k (USE THIS ONE!!!!~)
-    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p,PS_n=args
-    v,a,b,t1,t2=tausr_base(*args)
-    xy=sqrt(2)/v/t2
-    x=a*xy
-    y=b*xy
-    result1=xy**1/a*t1*(b**2-a**2)**2*SS.iv(0,x)/SS.iv(1,x)
-    result2=xy**2 *t1*(4*b**4*log(b/a) + (b**2-a**2)*(a**2-3*b**2+8/xy**2))
-    result3= result1 + result2/4.
-    result4= (t1+t2)/(2*t1*b**2) * result3
-    return result4
-    
-    
-def tausr2(*args):  #Diffusive mode
-    v,a,b,t1,t2=tausr_base(*args)
-    D=1.
-    Db=v**2*t2/2
-    alp=sqrt(1./(D*t1) + 1./(Db*t2) )
-    elem1=SS.iv(1,b*alp) * SS.kv(1,a*alp)-SS.iv(1,a*alp) * SS.kv(1,b*alp)
-    elem2=SS.iv(1,b*alp) * SS.kv(0,a*alp)+SS.iv(0,a*alp) * SS.kv(1,b*alp)
-    Lelem1=SS.iv(0,a/sqrt(Db*t2) )* elem1
-    Lelem2= alp * sqrt(Db*t2) *SS.iv(1,a/sqrt(Db*t2) )* elem2
-    Lp=Lelem1 + Lelem2
-    Lm= Lelem1-Lelem2
-    M= SS.iv(0,a/sqrt(Db*t2) )* elem2  -4 * a**2* sqrt(Db*t2) /(alp* (b**2-a**2)**2) *SS.iv(1,a/sqrt(Db*t2) )* elem1
-    result1=a*alp*(b**2/a**2-1) * M/2/Lp - Lm / Lp
-    result2= (3-4*log(b/a))*b**4 - 4*a**2 *b**2 + a**4
-    result3= result1 - a**2 * D *t1/ (8*Db*t2) * result2 / (b**2-a**2)
-    result4=(t1+t2) * (1-a**2/b**2)/(alp**2 * D *t1)**2 * result3
-    return result4
-
-def tausr3(*args):  #Minimal approximation
-    v,a,b,t1,t2=tausr_base(*args)
-    x= a * sqrt(2.)/v/t2
-    result1= (b**2-a**2)**2/ (sqrt(2) *v*a*b**2 ) *  SS.iv(0,x)/SS.iv(1,x)
-    result2= b**4 * log(b/a) + (b**2-a**2) * (a**2 - 3 *b**2 + 4 * v**2 *t2**2)/4.
-    return   result1 + result2/(v**2 * t2 * b**2)
-
-def tausr(*args):
-    tt= tausr1b(*args)
-    return tt
-    
-
-def f1r(*args):
-    tt= tausr1b(*args)
-    PC_rp,PC_f,PC_q,PF_sig ,PF_n ,GRD_nx,GRD_dx,PC_v,PS_p,PS_n=args
-    th= PF_n/PC_q
-    if PS_p>0:
-        tl= 1./PS_p #average time between jumps
-        if th<tl:
-            print("quick harvest")
-    else:
-        tl= 10000000000
-    t0=min(tl,th)
-    #return 1 + (exp(-t0/tt)-1)/(t0/tt)
-    return (1- log( 1 + t0/tt) / (t0/tt))
-
-
-
-
-
+rndcliq=0  #random partition of fishers into cliques
+spying=0
+worst=0 # Look for worst value of lambda depending on tauh, taul
 
 
 #=========== FIGURES ==================
@@ -202,6 +31,8 @@ if firstpass:
     TS=data['\\tau_s^R']
     xs=data['PC_rp']
     #print(TS)
+    plt.xlabel(r'$C_p$')
+    plt.ylabel('First passage time')
     plot(TS,[tausr(*get_constants(PC_rp=x)) for x in xs],xs=xs)
 
 
@@ -212,6 +43,8 @@ if firstpass_ns:
     TS=data['\\tau_s^R']
     dist=data['dist']
     xs=data['PS_n']
+    plt.xlabel(r'$S_n$')
+    plt.ylabel('First passage time')
     plot(TS,[tausr(*get_constants(PS_n=x)) for x in xs],xs=xs,log='xy')
    # plt.plot(xs,[TS[0]/x for x in xs])
    # plot(xs,dist,hold=1)
@@ -233,7 +66,23 @@ if fig2a:
     plt.plot(xs,[f1r(*get_constants(PC_rp=x)) for x in xs])
     plt.show()
 
-
+if spying:
+    #=========== FIGURE 2A ==================
+    filename="Data_spy"
+    set_constants(filename)
+    data=load_data(filename) 
+    TS=data['tau_s']
+    H1=data['H1']
+    H2=data['H2']
+    xs=data['PC_spy']
+    #plt.plot(xs,TS)
+    #plt.show()
+    plt.plot(xs,H1)
+    plt.plot(xs,H2)
+    plt.xlabel('Spying radius')
+    plt.ylabel('Catch rate')
+    plt.legend(["Sheep","Wolves"])
+    plt.show()
 
 if fig2b:
     #=========== FIGURE 2B ==================
@@ -245,6 +94,7 @@ if fig2b:
     F1=data["f1"]
     X=data['PF_sig']
     Y=data['PC_f']
+    Cp=data['PC_rp']
 
     #TS = np.load("../Data/Data_Fig2b.npy")
     #xy = np.load("../Data/Data_Fig2b_xs.npy")
@@ -265,7 +115,7 @@ if fig2b:
     Texp=X.copy()
     for i in range(T.shape[0]):
         for j in range(T.shape[1]):
-            args=get_constants(PF_sig=X[i,j],PC_f=Y[i,j])
+            args=get_constants(PF_sig=X[i,j],PC_f=Y[i,j],PC_rp= Cp[i,j])
             args[0]=p_opt(*args) #optimal turn probability
             T[i,j]=tausr(*args)
             args[0]=data["PC_rp"][i,j] #optimal turn probability
@@ -291,6 +141,7 @@ if fig3:
     filename="Data_Fig3_inf"
     set_constants(filename)
     data_inf=load_data(filename) 
+
     filename="Data_Fig3_noinf"
     data_noinf=load_data(filename) 
     TS=data_noinf['\\tau_s^R']
@@ -308,7 +159,11 @@ if fig3:
     Z1,Z2=TS[:,:].ravel(),TSinf[:,:].ravel()
     X=1./X
     Y=constants["PF_n"]/Y
-    taus1=tausr(*get_constants(**constants))
+    taus1=X.copy()
+    for i in range(taus1.shape[0]):
+        for j in range(taus1.shape[1]):
+            args=get_constants(PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j],PC_rp=data_inf['PC_rp'][i,j] )
+            taus1[i,j]=tausr(*args)
     X,Y=np.log10(X/taus1),np.log10(Y/taus1)
 
 #    ax.set_zlim(bottom=-1, top=1)
@@ -329,8 +184,8 @@ if fig3:
     T=X.copy()
     for i in range(T.shape[0]):
         for j in range(T.shape[1]):
-            args=get_constants(PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j] )
-            args[0]=p_opt(*args) #optimal turn probability
+            args=get_constants(PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j],PC_rp=data_inf['PC_rp'][i,j] )
+            #args[0]=p_opt(*args) #optimal turn probability
             T[i,j]=tausr(*args)
 
     ax.plot_wireframe(X,Y,T)
@@ -358,10 +213,14 @@ if fig3H:
     Catchinf=data_inf["H"]
     X=data_inf['PS_p']
     Y=data_inf['PC_q']
+    taus1=X.copy()
+    for i in range(taus1.shape[0]):
+        for j in range(taus1.shape[1]):
+            args=get_constants(PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j],PC_rp=data_inf['PC_rp'][i,j] )
+            taus1[i,j]=tausr(*args)
 
     X=1./X
     Y=constants["PF_n"]/Y
-    taus1=tausr(*get_constants())
     X,Y=np.log10(X/taus1),np.log10(Y/taus1)
 
     T1,T2=Catch[:,:].ravel(),Catchinf[:,:].ravel()
@@ -412,7 +271,12 @@ if fig3f:
 
     X=1./X
     Y=constants["PF_n"]/Y
-    taus1=tausr(*get_constants(**constants))
+    taus1=X.copy()
+    for i in range(taus1.shape[0]):
+        for j in range(taus1.shape[1]):
+            args=get_constants(PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j],PC_rp=data_inf['PC_rp'][i,j] )
+            taus1[i,j]=tausr(*args)
+
     X,Y=np.log10(X/taus1),np.log10(Y/taus1)
         
     #F1
@@ -458,7 +322,6 @@ if fig3f:
     plt.show()
     
 
-
 if fig4opt:
     #=========== FIGURE 4 - OPTIMIZATION ==================
     filename="Data_Fig4opt"
@@ -467,7 +330,9 @@ if fig4opt:
     X=data['PC_lambda']
     Y=data['PS_n']
     TS=data['\\tau_s^R']
-    H=data['Hdist']
+    F1=data['f1']
+    F2=data['f2']
+    H=data['Hrate']
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -489,11 +354,13 @@ if fig4opt:
     #mycmap.set_under('w')
     plt.xscale("log")
     plt.yscale("log")
-    plt.xlim([np.min(X),np.max(X)])
+    plt.xlim([np.min(X[X!=0]),np.max(X)])
     plt.ylim([np.min(Y),np.max(Y)])
     plt.pcolor(X,Y,TS[:,:], cmap=mycmap,vmin =min(TS[:,:].ravel()), vmax=max(TS[:,:].ravel()))
     plt.colorbar()
     plt.show()
+    
+
     
 if fig4opt_cliq:
     filename="Data_Fig4opt_cliq"
@@ -502,7 +369,7 @@ if fig4opt_cliq:
     X=data['PC_ncliq']
     Y=data['PS_n']
     TS=data['\\tau_s^R']
-    H=data['Hdist']
+    H=data['Hrate']
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -539,7 +406,7 @@ if fig4opt_comp:
     X=data['PC_ncliq']
     Y=data['PC_lambda']
     TS=data['\\tau_s^R']
-    H=data['Hdist']
+    H=data['Hrate']
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -571,11 +438,80 @@ if rndcliq:
     filename="Data_rndcliq"
     set_constants(filename)
     data=load_data(filename) 
-    print data["H"].shape
+    Htyp="Hdist"
     occur=data["occur"]
-    print occur
-    sizes=np.array([i for i,j in enumerate(occur) if j!=0]) #clique sizes with non-zero occurrence
-    H=data["H"][sizes]
+    sizes=np.array([i for i,j in enumerate(occur) if j>1]) #clique sizes with more than one occurrence
+    H=data[Htyp][sizes]
+    Hvar=data[Htyp+"_var"][sizes]*occur[sizes]/(occur[sizes]-1) #unbiased variance
+    Hstd=np.sqrt(Hvar)
+    TSvar=data["TS_var"][sizes]*occur[sizes]/(occur[sizes]-1) #unbiased variance
+    TSstd=np.sqrt(TSvar)
     TS=data["TS"][sizes]
-    plot(sizes+1,H)
-    plot(sizes+1,TS)
+    errorbar(sizes+1,H,yerr=Hstd)
+    errorbar(sizes+1,TS,yerr=TSstd)
+    
+    
+if worst:
+    #CATCH
+    filename="Data_worst"
+    set_constants(filename)
+    data=load_data(filename) 
+    Catch=data["Hrate"]
+    X=data['PS_p']
+    Y=data['PC_q']
+    L=data['PC_lambda']
+
+    X=1./X
+    Y=constants["PF_n"]/Y
+    taus1=np.array([tausr(*get_constants(PC_rp=Cp )) for Cp in data['PC_rp']])
+    X,Y=np.log10(X/taus1),np.log10(Y/taus1)
+
+    XX=np.zeros((X.shape[0],X.shape[1]))
+    YY=np.zeros((X.shape[0],X.shape[1]))
+    Worst=np.zeros((X.shape[0],X.shape[1]))
+    Dif=np.zeros((X.shape[0],X.shape[1]))
+    Extrem=np.zeros((X.shape[0],X.shape[1]))
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            XX[i,j]=np.mean(X[i,j])
+            YY[i,j]=np.mean(Y[i,j])
+            Worst[i,j]=L[i,j,[z for z in range(X.shape[2]) if Catch[i,j,z]==min(Catch[i,j])][0]]
+            Extrem[i,j]=(Catch[i,j,0]-Catch[i,j,-1])/min(Catch[i,j,0],Catch[i,j,1])
+            Dif[i,j]=(max(Catch[i,j])/min(Catch[i,j]))-1.
+            
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
+    ax.scatter(XX.ravel(),YY.ravel(),Worst.ravel(),c=Worst.ravel() )
+    ax.set_zlabel(r"$Worst value of lambda$")
+    plt.show()
+    
+    mycmap = plt.cm.get_cmap('seismic')
+    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
+    Z=Worst
+    plt.pcolor(XX, YY, Z,  vmin=Z.min(), vmax=Z.max(),cmap=mycmap)
+    plt.colorbar()
+    plt.show()
+
+    print("H(best lambda)/H(worst lambda)-1")
+    plt.clf()
+    mycmap = plt.cm.get_cmap('seismic')
+    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
+    Z=Dif
+    plt.pcolor(XX, YY, Z,  vmin=Z.min(), vmax=Z.max(),cmap=mycmap)
+    plt.colorbar()
+    plt.show()
+    
+    print("H(best lambda)/H(worst lambda)-H(best lambda in 0 or 1)/H(worst lambda in 0 or 1) ")
+    plt.clf()
+    mycmap = plt.cm.get_cmap('seismic')
+    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
+    Z=Dif-Extrem
+    plt.pcolor(XX, YY, Z,  vmin=Z.min(), vmax=Z.max(),cmap=mycmap)
+    plt.colorbar()
+    plt.show()
+

@@ -1,7 +1,7 @@
 
 
 ###### PRAMETERS / CONSTANTS for running the model to equilibrium
-function init_equilibrium(cliq=[])
+function init_equilibrium()
 #### Initialize fish
 #! all we need are fish location (x,y)
 #! the school location (x,y)
@@ -53,30 +53,6 @@ cons_v   = ones(PC_n) .* PC_v;
 
 #### Initialize social network
 cons_sn  = zeros(PC_n,PC_n) #.*max( eps(),PC_lambda); 
-#Cliques
-scliq=floor(PC_n/PC_ncliq) #clique size, first approx
-if length(cliq)==0
-    cliq=cell(PC_ncliq)
-    for c=1:PC_ncliq
-        cliq[c]=[(c-1)*scliq+ n  for n=1:scliq ]
-    end
-    i=1
-    n= scliq  * PC_ncliq +1
-    while n<PC_n   #distribute remaining fishers
-        cliq[i]=[cliq[i], n ]
-        n+=1
-        i+=1
-    end
-end
-for c in cliq
-    for i in c
-        for j in c
-            cons_sn[i,j] = max( eps(),PC_lambda)
-        end
-    end
-end
-#Diagonal
-for j = 1:PC_n; cons_sn[j,j] = 1; end;
 
 #Quantities that have to be measured during simulations
 cons_measure = ["Ts"=>zeros(Float64,PC_n), "Tv"=>zeros(Float64,PC_n) ,
@@ -91,7 +67,7 @@ cons = Fishers(cons_xy,cons_Ni,cons_target,cons_Nd,cons_dx,
                cons_measure)
                #cons_Ts,cons_Tv,
                #cons_ts,cons_ns)
-OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H);
+OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H,cons_mi);
 
 
 
@@ -147,3 +123,37 @@ end
 #### REFS
 # 1 - http://math.stackexchange.com/questions/52869/numerical-approximation-of-levy-flight/52870#52870
 # 2 - http://www.johndcook.com/standard_deviation.html
+
+
+function init_network(cons,FLAGS,cliq=[])
+    cons_sn=cons.SN
+    @set_constants PRM
+    #Cliques
+    scliq=floor(PC_n/PC_ncliq) #clique size, first approx
+    if length(cliq)==0
+        cliq=cell(PC_ncliq)
+        for c=1:PC_ncliq
+            cliq[c]=[(c-1)*scliq+ n  for n=1:scliq ]
+        end
+        i=1
+        n= scliq  * PC_ncliq +1
+        while n<PC_n   #distribute remaining fishers
+            cliq[i]=[cliq[i], n ]
+            n+=1
+            i+=1
+        end
+    end
+    for c in cliq
+        for i in c
+            for j in c
+                if !FLAGS["spying"] || j< PC_n/2 && i>PC_n/2
+                    #Either not spying, or spying and target is in 1st half and spy is in 2nd half
+                    cons_sn[i,j] = max( eps(),PC_lambda)
+                end
+            end
+        end
+    end
+    #Diagonal
+    for j = 1:PC_n; cons_sn[j,j] = 1; end;
+    cons.SN=cons_sn
+end
