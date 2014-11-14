@@ -9,17 +9,17 @@ from plot_benchcore import *
 
 firstpass=0
 firstpass_ns=0
-fig2a=0
-fig2b=0
+fig2a=1
+fig2b=1
 fig3=1 #Fig3 for tausr
 fig3H=1 #Fig3 for catch rate
 fig3f=1 #Other quantities related to fig3 (analytics)
-fig4opt=0 #optimal lambda
-fig4opt_cliq=0 #optimal ncliques
-fig4opt_comp=0 #cliques vs lambda
-rndcliq=0  #random partition of fishers into cliques
+fig4opt=1 #optimal lambda
+fig4opt_cliq=1 #optimal ncliques
+fig4opt_comp=1 #cliques vs lambda
+rndcliq=1  #random partition of fishers into cliques
 spying=0
-worst=0 # Look for worst value of lambda depending on tauh, taul
+worst=1 # Look for worst value of lambda depending on tauh, taul
 
 
 #=========== FIGURES ==================

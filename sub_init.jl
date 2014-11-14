@@ -1,6 +1,6 @@
 
 
-###### PRAMETERS / CONSTANTS for running the model to equilibrium
+###### PARAMETERS / CONSTANTS for running the model to equilibrium
 function init_equilibrium()
 #### Initialize fish
 #! all we need are fish location (x,y)
@@ -26,7 +26,6 @@ for i = 1:PF_n*PS_n; fish_fx[i,:,1] = mod(school_xy[fish_fs[i],:,1] +
 
 
 #### Initialize school
-#Partly done above
 school_pop=[PF_n for  school=1:PS_n]
 
 ##### Initialize fishers
@@ -65,8 +64,6 @@ fish = Fish(fish_fx,fish_fs);
 cons = Fishers(cons_xy,cons_Ni,cons_target,cons_Nd,cons_dx,
                cons_H,cons_s,cons_mi,cons_sn,cons_v,
                cons_measure)
-               #cons_Ts,cons_Tv,
-               #cons_ts,cons_ns)
 OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H,cons_mi);
 
 
@@ -80,16 +77,17 @@ OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H,cons_mi);
  #Events for fish: captured
  #Events for fisher: captor, targeting (fish found but outside harvesting distance)
  #        new neighbor (located another fish), new target (changed targeted fish)
+ #          bound (targeting a fish given by someone else)
  #Events for school: jumped
  EVENTS=(ASCIIString=>Set{Int})["captured"=>Set{Int}(), "captor"=>Set{Int}(),
      "new_target"=>Set{Int}(),"new_neighbor"=>Set{Int}(),
      "targeting"=>Set{Int}(),"jumped"=>Set{Int}(),
      "in_contact"=>Set{Int}(), "spying"=>Set{Int}(),
-     "left_school"=>Set{Int}(),"found_school"=>Set{Int}()]
+     "left_school"=>Set{Int}(),"found_school"=>Set{Int}(),"bound"=>Set{Int}() ]
 
 
 #Flags: Switches that control the behaviour of the simulation
- # benichou: can detect fish only at rest
+ # benichou: can detect fish only at rest (in search mode)
  # rtree: Use r-tree to find nearest neighbor among fish
  # save: Print out positions of all fishers and fish to make movies
  # implicit_fish: instead of modelling discrete fish, schools are disks
@@ -111,26 +109,18 @@ else
     fishtree = Fishtree([])
 end
 
-interfish=(1./(PF_n/PF_sig^2 *PC_h ) )
-if !FLAGS["implicit_fish"] && interfish> PC_f
-    ### Warning for extreme spread of school
-    println("Alert: Fishfinder radius: $PC_f < Interfish distance: $interfish ")
-end
-
 return school,fish,cons,fishtree,EVENTS,FLAGS,OUT
 end
 
-#### REFS
-# 1 - http://math.stackexchange.com/questions/52869/numerical-approximation-of-levy-flight/52870#52870
-# 2 - http://www.johndcook.com/standard_deviation.html
-
-
+#============ Initializing Network ============#
 function init_network(cons,FLAGS,cliq=[])
     cons_sn=cons.SN
     @set_constants PRM
     #Cliques
     scliq=floor(PC_n/PC_ncliq) #clique size, first approx
     if length(cliq)==0
+        #If no clique list is given, divide fishers into
+        #equal cliques (number of cliques given by PC_nqcliq)
         cliq=cell(PC_ncliq)
         for c=1:PC_ncliq
             cliq[c]=[(c-1)*scliq+ n  for n=1:scliq ]
@@ -146,6 +136,7 @@ function init_network(cons,FLAGS,cliq=[])
     for c in cliq
         for i in c
             for j in c
+                #Spying flag: Wolf and sheep experiment
                 if !FLAGS["spying"] || j< PC_n/2 && i>PC_n/2
                     #Either not spying, or spying and target is in 1st half and spy is in 2nd half
                     cons_sn[i,j] = max( eps(),PC_lambda)

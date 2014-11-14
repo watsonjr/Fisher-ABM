@@ -86,11 +86,14 @@ end
 function reinit_parameters()
     #return global parameters to their default value
     for f in names(PRM)
+        #names(PRM) gives list of fields of object PRM
         setfield!(PRM,f,getfield(DFT_PRM,f))
     end
 end
 
 function save_parameters()
+    #Obsolete because now I save parameters for each
+    #experiment separately
     file=open("./Data/Data_params.dat","w")
     for f in names(PRM)
         #println( PRM.f)

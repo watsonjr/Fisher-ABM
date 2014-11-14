@@ -22,10 +22,11 @@ include("Experiments.jl");
 timingtest=false #timing & profiling
 firstpass=false #Benichou test: time of first passage
 fig2a=false #Fig2a: search time 1 fisher vs C_rp
-fig2b=true #Fig2b: search time 1 fisher vs Cf, Fsigma 
-fig2c=true #Fig2b: search time 1 fisher vs S_p, C_q 
+fig2b=false #Fig2b: search time 1 fisher vs Cf, Fsigma 
+fig2c=false #Fig2b: search time 1 fisher vs S_p, C_q 
 fig3=true #Fig3: VOI against tau_h/tau_s, tau_l/tau_s
 fig4opt=false  #optimal lambda
+fig4opt_cn=false  #optimal lambda
 fig4opt_cliq=false #optimal nb cliques
 fig4opt_comp=false #cliques vs lambda
 rndcliq=false  #random partition of fishers into cliques
@@ -80,6 +81,11 @@ end
 if fig4opt
     reinit_parameters()
     do_fig4opt()
+end
+
+if fig4opt_cn
+    reinit_parameters()
+    do_fig4opt_cn()
 end
 
 

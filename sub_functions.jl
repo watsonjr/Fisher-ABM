@@ -158,14 +158,17 @@ end
 #### FISH FINDER / DISTANCE
 #!calculate distances between fishermen and nearest target if any within scope
 #!(targets can be fish in the base model, or schools in the "implicit_fish" model)
-function fnc_fishfinder(grd,PC_f,school,fish,cons,fishtree,EVENTS,FLAGS)
+function fnc_fishfinder(school,fish,cons,fishtree,EVENTS,FLAGS)
     @set_constants PRM
     empty!(EVENTS["new_neighbor"])
     empty!(EVENTS["left_school"])
     empty!(EVENTS["found_school"])
+    
+    grd=GRD_mx/2
 
     Fx,Sx,Si,Cx=fish.fx,school.x,fish.fs,cons.x
-    # First, find nearby schols
+    
+    # First, find nearby schools
     II = cell(PC_n); # index of schools close to each fisher
     for i = 1:PC_n
         II[i] =[]
@@ -292,6 +295,10 @@ function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
             if rand() < (1-PC_rp) # maybe switch to searching
                 MI[i] = 1
                 V[i]=PC_v/3.
+                #Watch out for the diffusive velocity in search mode
+                #(arbitrarily set to PC_v/3 here because that fits
+                #the benichou curves with k=infinity best, but changing
+                #this doesn't change the optimal value of PC_rp anyway)
             end
         end
     end
@@ -312,17 +319,17 @@ function fnc_contact(school,fish,cons,fishtree,EVENTS,FLAGS)
     empty!(EVENTS["in_contact"])
     probing= EVENTS["new_neighbor"]  #ask to any friend who has a new neighbor
     
-    for i = 1:PC_n
-        for j in probing
+    for j in probing
+        for i = 1:PC_n
             if i==j
                 continue
             end
             f1 = SN[i,j];
             f2 = SN[j,i];
             RN = rand(2,1);
-            dx = fnc_dist(Cx[i,:],Cx[j,:])  #distance between fishermen
-
+           
             if FLAGS["spying"] 
+                dx = fnc_dist(Cx[i,:],Cx[j,:])  #distance between fishermen
                 #Directional exchanges are possible within spying radius PC_spy
                 if RN[1] < f1 && dx < PC_spy
                     CN[i,j] = 1;
@@ -366,11 +373,13 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
     @set_constants PRM
     #In this function we manage targeting events
     
-    dxy,Ni,Fx,Cx,MI=cons.DXY,cons.Ni,fish.fx,cons.x,cons.MI
+    dxy,Ni,Cx,MI=cons.DXY,cons.Ni,cons.x,cons.MI
     
     if FLAGS["implicit_fish"]
         #Neighbors are schools rather than fish
         Fx=school.x
+    else
+        Fx=fish.fx
     end
 
     DMIN,DXY=cons.Dmin,cons.DXY # shortest distance & unit vector
@@ -387,6 +396,7 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             end
             cons.target[id]=0
             delete!(EVENTS["targeting"],id)
+            delete!(EVENTS["bound"],id)
             V[id]=PC_v #Restore speed to normal value
         end
     end
@@ -431,6 +441,14 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
         # Decide which target to choose
         if  !isnan(Dmin)  && (isnan(current) || Dmin<current ) 
             # if I see anything better than current target (if any)
+            if in(id,EVENTS["targeting"])
+                #In case the fisher was previously bound
+                delete!(EVENTS["bound"],id)
+            end
+            if jj!=cons.Ni[id]
+                #If the target is not own neighbour
+                push!(EVENTS["bound"],id)
+            end
             push!(EVENTS["targeting"],id)
             cons.target[id]=jj
         elseif  in(id,EVENTS["targeting"]) && !isnan(current) 
@@ -551,6 +569,9 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         #f2: two fishers in the same school
         #fij: two fishers within "school size" of each other
         for i=1:PC_n
+            if in(i,EVENTS["bound"])
+                cons.measure["bound"][i]+=1
+            end
             if schools[i]!=0
                 if sum(schools.==schools[i])>1
                     f2[i]+=1

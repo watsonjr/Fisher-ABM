@@ -1,4 +1,4 @@
-# PS_p PC_q \tau_s^R f1 fij H PC_rp 
+# PS_p PC_q \tau_s^R f1 f2 fij bound H PC_rp 
 GRD_nx    100
 GRD_dx    1.0
 GRD_mx    100.0

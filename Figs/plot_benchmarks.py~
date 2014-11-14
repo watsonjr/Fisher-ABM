@@ -9,8 +9,8 @@ from plot_benchcore import *
 
 firstpass=0
 firstpass_ns=0
-fig2a=0
-fig2b=0
+fig2a=1
+fig2b=1
 fig3=1 #Fig3 for tausr
 fig3H=1 #Fig3 for catch rate
 fig3f=1 #Other quantities related to fig3 (analytics)

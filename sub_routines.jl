@@ -38,15 +38,17 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2,OUT=None)
     cons.measure["f1"]=zeros(PC_n)
     cons.measure["f2"]=zeros(PC_n)
     cons.measure["fij"]=zeros(PC_n)
+    cons.measure["bound"]=zeros(PC_n)
  end
  if FLAGS["measure_H"]
     cons.measure["Hrate"]=zeros(PC_n)
  end
+ 
  while whilecond(fish,cons,dTs,dHs,EVENTS)
     turns+=1
     ## Distances
     #D,Dx,Dy,cons.MI = fnc_distance(fish.fx,cons.x,cons.MI);
-    fnc_fishfinder(GRD_mx2,PC_f,args...);
+    fnc_fishfinder(args...);
     #(cons.Ni,cons.Dmin) = fnc_distance_3(fish.fx,cons.x,PC_f);
  
     ## Update steam(MI=0)/search(MI=1) switch
@@ -114,6 +116,7 @@ if FLAGS["measure_frac"]
     cons.measure["f1"]/=turns
     cons.measure["f2"]/=turns
     cons.measure["fij"]/=turns
+    cons.measure["bound"]/=turns
 end
 if FLAGS["measure_H"]
     cons.measure["Hdist"]=cons.H ./ cons.measure["distance"]
