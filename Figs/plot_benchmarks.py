@@ -9,15 +9,16 @@ from plot_benchcore import *
 
 firstpass=0
 firstpass_ns=0
-fig2a=1
-fig2b=1
-fig3=1 #Fig3 for tausr
-fig3H=1 #Fig3 for catch rate
-fig3f=1 #Other quantities related to fig3 (analytics)
-fig4opt=1 #optimal lambda
-fig4opt_cliq=1 #optimal ncliques
-fig4opt_comp=1 #cliques vs lambda
-rndcliq=1  #random partition of fishers into cliques
+fig2a=0
+fig2b=0
+fig3=0 #Fig3 for tausr
+fig3H=0 #Fig3 for catch rate
+fig3f=0 #Other quantities related to fig3 (analytics)
+fig4opt=0 #optimal lambda
+fig4opt_cliq=0 #optimal ncliques
+fig4opt_comp=0 #cliques vs lambda
+rndcliq=0  #random partition of fishers into cliques
+rndcliq_explor=1  #random partition of fishers into cliques for all tauh taul
 spying=0
 worst=1 # Look for worst value of lambda depending on tauh, taul
 
@@ -188,8 +189,8 @@ if fig3:
             #args[0]=p_opt(*args) #optimal turn probability
             T[i,j]=tausr(*args)
 
-    ax.plot_wireframe(X,Y,T)
-    plt.show()
+    #ax.plot_wireframe(X,Y,T)
+    #plt.show()
 
     #Heatmap
     #Z1=TS
@@ -438,7 +439,7 @@ if rndcliq:
     filename="Data_rndcliq"
     set_constants(filename)
     data=load_data(filename) 
-    Htyp="Hdist"
+    Htyp="Hrate"
     occur=data["occur"]
     sizes=np.array([i for i,j in enumerate(occur) if j>1]) #clique sizes with more than one occurrence
     H=data[Htyp][sizes]
@@ -450,7 +451,54 @@ if rndcliq:
     errorbar(sizes+1,H,yerr=Hstd)
     errorbar(sizes+1,TS,yerr=TSstd)
     
+if rndcliq_explor:
+    filename="Data_rndcliq_explor"
+    set_constants(filename)
+    data=load_data(filename) 
+    Htyp="Hrate"
+    occur=data["occur"]
     
+    X=data['PS_p'][:,:,0]
+    Y=data['PC_q'][:,:,0]
+    Cp=data['PC_rp'][:,:,0]
+    
+    Z=np.zeros(occur.shape[:2])
+    taus1=np.zeros(occur.shape[:2])
+    for x in range(occur.shape[0]):
+        for y in range(occur.shape[1]):
+            loccur=occur[x,y]
+            sizes=np.array([i for i,j in enumerate(loccur) if j>1]) #clique sizes with more than one occurrence
+            H=data[Htyp][x,y,sizes]
+            Hvar=data[Htyp+"_var"][x,y,sizes]*loccur[sizes]/(loccur[sizes]-1) #unbiased variance
+            Hstd=np.sqrt(Hvar)
+            TSvar=data["TS_var"][x,y,sizes]*loccur[sizes]/(loccur[sizes]-1) #unbiased variance
+            TSstd=np.sqrt(TSvar)
+            TS=data["TS"][x,y,sizes]
+            Z[x,y]=1+sizes[np.argmax(H)]
+            taus1[x,y]=tausr(*get_constants(PC_rp=Cp[x,y], PS_p=X[x,y], PC_q=Y[x,y] ))
+            #errorbar(sizes+1,H,yerr=Hstd,hold=1)
+#    errorbar(sizes+1,TS,yerr=TSstd)
+
+    X=1./X
+    Y=constants["PF_n"]/Y
+    X,Y=np.log10(X/taus1),np.log10(Y/taus1)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
+    ax.scatter(X.ravel(),Y.ravel(),Z.ravel(),c=Z.ravel() )
+    ax.set_zlabel(r"Optimal clique size")
+    plt.show()
+    plt.clf()
+    mycmap = plt.cm.get_cmap('seismic')
+    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
+    plt.pcolor(X, Y, Z,  vmin=Z.min(), vmax=Z.max(),cmap=mycmap)
+    plt.colorbar()
+    plt.show()
+
+    
+
 if worst:
     #CATCH
     filename="Data_worst"

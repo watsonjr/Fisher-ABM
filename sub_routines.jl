@@ -39,6 +39,8 @@ function make_season(school,fish,cons,fishtree,EVENTS,FLAGS,stopflag=2,OUT=None)
     cons.measure["f2"]=zeros(PC_n)
     cons.measure["fij"]=zeros(PC_n)
     cons.measure["bound"]=zeros(PC_n)
+    EVENTS["finders"]=Set{Int}()
+    cons.measure["finders"]=zeros(PC_n)
  end
  if FLAGS["measure_H"]
     cons.measure["Hrate"]=zeros(PC_n)
@@ -117,6 +119,7 @@ if FLAGS["measure_frac"]
     cons.measure["f2"]/=turns
     cons.measure["fij"]/=turns
     cons.measure["bound"]/=turns
+    cons.measure["finders"]/=turns
 end
 if FLAGS["measure_H"]
     cons.measure["Hdist"]=cons.H ./ cons.measure["distance"]

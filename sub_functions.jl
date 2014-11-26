@@ -395,6 +395,9 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
                 cons.Ni[id]=0
             end
             cons.target[id]=0
+            #if FLAGS["measure_frac"]
+            #    delete!(EVENTS["finders"],id)
+            #end
             delete!(EVENTS["targeting"],id)
             delete!(EVENTS["bound"],id)
             V[id]=PC_v #Restore speed to normal value
@@ -448,6 +451,8 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             if jj!=cons.Ni[id]
                 #If the target is not own neighbour
                 push!(EVENTS["bound"],id)
+            elseif FLAGS["measure_frac"]
+                push!(EVENTS["finders"],id)
             end
             push!(EVENTS["targeting"],id)
             cons.target[id]=jj
@@ -459,6 +464,9 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             # else I roam around randomly 
             cons.target[id]=0
             delete!(EVENTS["targeting"],id)
+            if FLAGS["measure_frac"]
+                delete!(EVENTS["finders"],id)
+            end
 
             #Steam or search pattern
             if MI[id] == 0 # # steam
@@ -568,15 +576,26 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         #f1: one fisher in a school
         #f2: two fishers in the same school
         #fij: two fishers within "school size" of each other
+        
+        #Number of fishers per school
+        schfreq=hist(schools,0.5:PS_n+0.5 )[2]
+        #println(schfreq,schools,PS_n,PC_n)
+        
+        #Number of fishers in a school with k fishers
+        fk=hist(schfreq,0.5:PC_n+0.5 )[2]
+        
+        cons.measure["finders"]+=length(EVENTS["finders"])/PC_n
+        
         for i=1:PC_n
             if in(i,EVENTS["bound"])
                 cons.measure["bound"][i]+=1
             end
-            if schools[i]!=0
-                if sum(schools.==schools[i])>1
-                    f2[i]+=1
-                else
+            if schools[i]>0
+                others=schfreq[schools[i]]-1 #Number of other fishers in same school
+                if others==0
                     f1[i]+=1
+                elseif others>0
+                    f2[i]+=1
                 end
             end
             if FLAGS["measure_fij"]

@@ -225,7 +225,7 @@ function do_fig3()
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result_noinf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),mean(cons.measure["bound"]),mean(cons.measure["Hrate"]),PRM.PC_rp;
+            result_noinf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]),mean(cons.measure["Hrate"]),PRM.PC_rp;
 
             println("With full information")
             #With information
@@ -238,12 +238,12 @@ function do_fig3()
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 
-            result_inf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),mean(cons.measure["bound"]),mean(cons.measure["Hrate"]),PRM.PC_rp
+            result_inf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]),mean(cons.measure["Hrate"]),PRM.PC_rp
 
         end
     end
-    save_results(result_inf,R"PS_p PC_q \tau_s^R f1 f2 fij bound H PC_rp","Data_Fig3_inf",PRM)
-    save_results(result_noinf,R"PS_p PC_q \tau_s^R f1 f2 fij bound H PC_rp","Data_Fig3_noinf",PRM)
+    save_results(result_inf,R"PS_p PC_q \tau_s^R f1 f2 fij bound find H PC_rp","Data_Fig3_inf",PRM)
+    save_results(result_noinf,R"PS_p PC_q \tau_s^R f1 f2 fij bound find H PC_rp","Data_Fig3_noinf",PRM)
 
 end
 
@@ -309,11 +309,11 @@ function do_fig4opt()
             init_network(cons,FLAGS)
             FLAGS["measure_frac"]=true
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]);
+            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]);
             println("$i $j")
         end
     end
-    save_results(result,R"PC_lambda PS_n taus1 \tau_s^R Hrate Hdist f1 f2","Data_Fig4opt",PRM)
+    save_results(result,R"PC_lambda PS_n taus1 \tau_s^R Hrate Hdist f1 f2 bound find","Data_Fig4opt",PRM)
 
 end
 
@@ -341,11 +341,11 @@ function do_fig4opt_cn()
             init_network(cons,FLAGS)
             FLAGS["measure_frac"]=true
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]);
+            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]);
             println("$i $j")
         end
     end
-    save_results(result,R"PC_lambda PC_n taus1 \tau_s^R Hrate Hdist f1 f2","Data_Fig4opt_cn",PRM)
+    save_results(result,R"PC_lambda PC_n taus1 \tau_s^R Hrate Hdist f1 f2 bound find","Data_Fig4opt_cn",PRM)
 
 end
 
@@ -417,12 +417,12 @@ function do_rndcliq()
     println("Optimal clique size vs all other sizes")
     PRM.PC_lambda = 1.
     PRM.PC_n = 30;
-    PRM.PC_f=PRM.GRD_mx*0.04
-    PRM.PF_sig=PRM.GRD_mx*0.04
-    PRM.PS_p = 0.001;
+    PRM.PC_f=PRM.GRD_mx*0.03
+    PRM.PF_sig=PRM.GRD_mx*0.03
+    PRM.PS_p = 0.1;
     PRM.PC_q = 1.;
     PRM.PS_n = 10;
-    PRM.PF_n = 1000;
+    PRM.PF_n = 100;
     
     PRM.PC_rp = fnc_optimal_PCrp();
     tauh=PRM.PF_n/PRM.PC_q
@@ -483,16 +483,18 @@ function do_rndcliq_explor()
     PRM.PC_n = 30;
     PRM.PS_p = 0.001;
     PRM.PC_q = 1.;
-    PRM.PF_n = 1000;
+    PRM.PF_n = 10;
     PRM.PC_f=PRM.GRD_mx*0.03
     PRM.PF_sig=PRM.GRD_mx*0.04
     PRM.PS_n = int(round(.05 / (pi *PRM.PF_sig^2 /PRM.GRD_nx^2 ) )) ;
     println("Number of schools: $(PRM.PS_n)")
     
-    JUMP = logspace(log10(0.001),log10(.1),20);
-    CATCH  = logspace(log10(0.01),log10(1),20);
+    ntrials=40
+    
+    JUMP = logspace(log10(0.001),log10(.1),10);
+    CATCH  = logspace(log10(0.01),log10(1),10);
     LAM  = linspace(0,1,10);
-    allresult = cell(size(JUMP,1),size(CATCH,1));
+    allresult = cell(size(JUMP,1),size(CATCH,1),PC_n);
     
     for i = 1:length(JUMP)
         for j = 1:length(CATCH)
@@ -510,7 +512,8 @@ function do_rndcliq_explor()
             H=zeros(PRM.PC_n,2) #average catch rate per clique size
             Hdist=zeros(PRM.PC_n,2) #average catch/traveled distance per clique size
             TS=zeros(PRM.PC_n,2) #average search time per clique size
-            for i = 1:300
+            for n = 1:ntrials
+                println(n)
                 part=pycall(pypartition["random_partition"],PyAny,PRM.PC_n) #random partition of PC_n
                 cliq=cell(length(part)) #composition of the cliques
                 idx=1
@@ -519,10 +522,9 @@ function do_rndcliq_explor()
                     idx+=part[p]
                 end
                 #Run
-                println(i)
                 school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
                 init_network(cons,FLAGS,cliq)
-                make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1);
+                make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
                 for p in 1:length(part)
                     #for each element in the partition
                     occur[part[p]]+=1
@@ -547,13 +549,14 @@ function do_rndcliq_explor()
             end
             coll=hcat(H[:,1],Hdist[:,1],TS[:,1],H[:,2],Hdist[:,2],TS[:,2],occur)
             result=cell(size(coll,1))
-            for i =1:size(coll,1)
-                result[i]=coll[i,:]
+            for c =1:size(coll,1)
+                result[c]=hcat([JUMP[i] CATCH[j]  PRM.PC_rp] ,coll[c,:])
             end
+            allresult[i,j,:]=result
         end
     end    
     
-    save_results(result,R"PS_p PC_q PC_rp Hrate Hdist TS Hrate_var Hdist_var TS_var occur","Data_rndcliq_explor",PRM)
+    save_results(allresult,R"PS_p PC_q PC_rp Hrate Hdist TS Hrate_var Hdist_var TS_var occur","Data_rndcliq_explor",PRM)
 end
 
 

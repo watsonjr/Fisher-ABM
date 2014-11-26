@@ -1,4 +1,4 @@
-# PC_lambda PS_n taus1 \tau_s^R Hrate Hdist f1 f2 
+# PC_lambda PS_n taus1 \tau_s^R Hrate Hdist f1 f2 bound find 
 GRD_nx    100
 GRD_dx    1.0
 GRD_mx    100.0
