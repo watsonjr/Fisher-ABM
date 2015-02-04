@@ -1,0 +1,17 @@
+GRD_nx    100
+GRD_dx    1.0
+GRD_mx    100.0
+GRD_mx2    50.0
+PS_n    1
+PS_p    0.001
+PF_n    10
+PF_sig    4.0
+PC_n    30
+PC_v    4.0
+PC_h    1.0
+PC_rp    0.7
+PC_f    4.0
+PC_q    1.0
+PC_lambda    1.0
+PC_ncliq    1
+PC_spy    100.0

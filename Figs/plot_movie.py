@@ -5,7 +5,7 @@ import os
 
 
 
-imgformat='jpg'
+imgformat='png'
 maxpic=500 #Maximum number of pictures made
 
 
@@ -21,7 +21,6 @@ Cons = np.load("../Data/Data_fishers.npy")
 Clus = np.load("../Data/Data_clusters.npy")
 Pop = np.load("../Data/Data_cluspop.npy")
 Harv = np.load("../Data/Data_harvest.npy")
-MI = np.load("../Data/Data_MI.npy")
 
 implicit_fish=True
 
@@ -60,7 +59,7 @@ for i in np.arange(0,min(maxpic,Fish.shape[2])):
         plt.scatter(xl,yl,s=3.14*convert_dist(ax,PF_sig)**2* Pop[:,i]/PF_n,alpha=.4 );
     plt.scatter(xc,yc,alpha=.3,color=[1,0,0],s=3.14*convert_dist(ax,PC_f)**2);
     #plt.scatter(xc,yc,alpha=1,c=[[1,(ca%PF_n)/PF_n,(ca%PF_n)/PF_n] for ca in Harv[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
-    plt.scatter(xc,yc,alpha=1,c=[[1,0,0] if mi else [1,1,1] for mi in MI[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
+    plt.scatter(xc,yc,alpha=1,color=[1,0,0],s=3.14*convert_dist(ax,PC_h)**2);
     plt.xticks([]);
     plt.yticks([]);
 

@@ -1,0 +1,16 @@
+# PC_lambda PC_n taus1 \tau_s^R Hrate Hdist f1 f2 bound find 
+GRD_nx    100
+GRD_dx    1.0
+GRD_mx    100.0
+GRD_mx2    50.0
+PS_n    10
+PS_p    0.001
+PF_n    10
+PF_sig    5.0
+PC_v    4.0
+PC_h    1.0
+PC_rp    0.17117847542626474
+PC_f    5.0
+PC_q    0.1
+PC_ncliq    1
+PC_spy    100.0

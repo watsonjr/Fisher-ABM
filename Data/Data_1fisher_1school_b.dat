@@ -1,0 +1,15 @@
+# PF_sig PC_f \tau_s^R std PC_rp 
+GRD_nx    100
+GRD_dx    1.0
+GRD_mx    100.0
+GRD_mx2    50.0
+PS_n    8
+PS_p    0.0
+PF_n    30
+PC_n    1
+PC_v    2.0
+PC_h    1.0
+PC_q    1.0
+PC_lambda    0.0
+PC_ncliq    1
+PC_spy    100.0

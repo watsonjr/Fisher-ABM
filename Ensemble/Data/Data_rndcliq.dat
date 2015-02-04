@@ -1,0 +1,18 @@
+# Hrate Hdist TS Hrate_var Hdist_var TS_var occur 
+GRD_nx    100
+GRD_dx    1.0
+GRD_mx    100.0
+GRD_mx2    50.0
+PS_n    10
+PS_p    0.1
+PF_n    100
+PF_sig    3.0
+PC_n    30
+PC_v    4.0
+PC_h    1.0
+PC_rp    0.16842086334036133
+PC_f    3.0
+PC_q    1.0
+PC_lambda    1.0
+PC_ncliq    1
+PC_spy    100.0

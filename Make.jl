@@ -1,128 +1,58 @@
 #### Add modules
-#using PyPlot
 using Types
 using NPZ, Devectorize
-using PyCall
 import Iterators
+using PyCall
 @pyimport rtree.index as pyrtree #R-tree python module
 unshift!(PyVector(pyimport("sys")["path"]), "") #include local folder in search
 pypartition=pyimport(:random_partition) #Random partition for experiment
 
-
-#### Add functions and routines
-include("Utilities.jl");
+####!! Add functions and routines
 include("Constants.jl");
-include("sub_init.jl");
 include("sub_functions.jl");
+include("sub_init.jl");
 include("sub_routines.jl");
 include("Experiments.jl");
 
-#### Switches for various experiments below
+####!! Switches for various experiments below
+timingtest = false #make a movie
+one_fisher = false #expected search time 1 fisher vs C_rp
+two_fisher = false #VOI over many tau_h, tau_l
+nfisher_quantile = false #optimal clique size when VOI high
+nfisher_wsls = true #optimal clique size when VOI high
 
-timingtest=false #timing & profiling
-firstpass=false #Benichou test: time of first passage
-fig2a=false #Fig2a: search time 1 fisher vs C_rp
-fig2b=false #Fig2b: search time 1 fisher vs Cf, Fsigma 
-fig2c=false #Fig2b: search time 1 fisher vs S_p, C_q 
-fig3=true #Fig3: VOI against tau_h/tau_s, tau_l/tau_s
-fig4opt=false  #optimal lambda
-fig4opt_cn=false  #optimal lambda
-fig4opt_cliq=false #optimal nb cliques
-fig4opt_comp=false #cliques vs lambda
-rndcliq=false  #random partition of fishers into cliques
-worst=false #like fig3 + iteration over lambda to find min(VOI)
+####!! Basic timing/profiling test for a single run
+#println("First run")
+#do_timingtest(true)
+#println("Then profiling (now that everything is compiled)")
+#@profile do_timingtest(true)
+#logfile=open("log.dat","w")
+#Profile.print(logfile,format=:flat)
+#close(logfile)
 
-spying=false #spying radius
-
-#### Basic timing/profiling test for a single run
-
-if timingtest
-    println("First run")
-    do_timingtest(true)
-    println("Then profiling (now that everything is compiled)")
-    @profile do_timingtest(false)
-    logfile=open("log.dat","w")
-    Profile.print(logfile,format=:flat)
-    close(logfile)
-end
-
-
-#### Experiments for benchmarks paper
+####!! Experiments for benchmarks paper
 ##(function definitions are in Experiments.jl)
-
-if firstpass
-    reinit_parameters()
-    do_first_passage()
-    
-    reinit_parameters()
-    do_fstpass_nschool()
+if timingtest
+	reinit_parameters()
+	do_timingtest(true)
 end
 
-if fig2a
+if one_fisher
     reinit_parameters()
-    do_fig2a()
+    do_1fisher()
 end
 
-if fig2b
+if two_fisher
     reinit_parameters()
-    do_fig2b()
+    do_2fisher();
 end
 
-if fig2c
+if nfisher_quantile
     reinit_parameters()
-    do_fig2c()
+    do_nfisher_quantile(0.9)
 end
 
-if fig3
+if nfisher_wsls
     reinit_parameters()
-    do_fig3()
+    @time do_nfisher_wsls()
 end
-
-if fig4opt
-    reinit_parameters()
-    do_fig4opt()
-end
-
-if fig4opt_cn
-    reinit_parameters()
-    do_fig4opt_cn()
-end
-
-
-if fig4opt_cliq
-    reinit_parameters()
-    do_fig4opt_cliq()
-end
-
-if fig4opt_comp
-    reinit_parameters()
-    do_fig4opt_comp()
-end
-
-if rndcliq
-    reinit_parameters()
-    do_rndcliq()
-end
-
-if worst
-    reinit_parameters()
-    do_worst()
-end
-
-if spying
-    reinit_parameters()
-    do_spying()
-end
-
-#################### OLDER EXPERIMENTS #############################
-
-####### Simple problem (raise SN entirely)
-#@time CPUE,Tau = sim_simple();
-#npzwrite("./Data/Data_simple.npz", ["x"=>1, "CPUE"=>CPUE, "Tau"=>Tau])
-#
-####### Optimize SN for the fleet catch
-#@time (CPUE,Social_network) = sim_fleet();
-#
-####### Optimize an Individual's social network
-#@time (CPUE,Social_network) = sim_individual()
-#npzwrite("./Data/Data_individual.npz", ["x"=>1, "CPUE"=>CPUE, "SN"=>Social_network])

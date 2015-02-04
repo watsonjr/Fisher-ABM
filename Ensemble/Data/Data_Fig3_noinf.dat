@@ -1,0 +1,15 @@
+# PS_p PC_q \tau_s^R f1 f2 fij bound H PC_rp 
+GRD_nx    100
+GRD_dx    1.0
+GRD_mx    100.0
+GRD_mx2    50.0
+PS_n    10
+PF_n    10
+PF_sig    4.0
+PC_n    2
+PC_v    4.0
+PC_h    1.0
+PC_f    3.0
+PC_lambda    1.0
+PC_ncliq    1
+PC_spy    100.0
