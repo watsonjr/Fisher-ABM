@@ -3,9 +3,9 @@ import random_partition as part
 
 fig2b=0
 fig2c=0
-fig3=1
+fig3=0
 fig4opt =1
-fig4opt_cn =1
+fig4opt_cn =0
 
 
     
@@ -179,6 +179,15 @@ if fig3:
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_zlabel("Finders")
+    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
+    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
+    ax.scatter(X.ravel(),Y.ravel(),data_inf["find"] )
+    ax.plot_wireframe(X,Y,B)
+    plt.show()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
     ax.set_zlabel(r"$\tau_s^R$")
     plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
     plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
@@ -201,6 +210,23 @@ if fig4opt:
     F2=data['f2']
     H=data['Hrate']
 
+    #TS versus theory
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\lambda$")
+    plt.ylabel(r"$S_n$")
+    ax.set_zlabel(r"$\tau_s$")
+    TSth=np.zeros((X.shape[0],X.shape[1]))
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            TSth[i,j]=tausr(*get_constants(PS_n=Y[i,j]) )
+    ax.scatter(X.ravel(),Y.ravel(),TS[:,:].ravel())
+    #ax.scatter(X.ravel(),Y.ravel(),F1th[:,:].ravel() ,color='r' )
+    #ax.plot_wireframe(X,Y,F1th,color='r')
+    ax.plot_wireframe(X,Y,TSth,color='g')
+    plt.show()
+    
+
     #f1 versus theory
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -212,7 +238,7 @@ if fig4opt:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             F1th[i,j]=f1theo(X[i,j],*get_constants(PS_n=Y[i,j]) )
-            F1th2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]) )[0]
+            F1th2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]), taus=TS[i,j] )[0]
     ax.scatter(X.ravel(),Y.ravel(),F1[:,:].ravel())
     #ax.scatter(X.ravel(),Y.ravel(),F1th[:,:].ravel() ,color='r' )
     #ax.plot_wireframe(X,Y,F1th,color='r')
@@ -231,7 +257,7 @@ if fig4opt:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             F2th[i,j]=f2theo(X[i,j],*get_constants(PS_n=Y[i,j]) )
-            F2th2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]) )[1]
+            F2th2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]), taus=TS[i,j]  )[1]
     ax.scatter(X.ravel(),Y.ravel(),F2[:,:].ravel())
     #ax.scatter(X.ravel(),Y.ravel(),F2th[:,:].ravel() ,color='r' )
     #ax.plot_wireframe(X,Y,F2th,color='r')
@@ -248,7 +274,7 @@ if fig4opt:
     B=np.zeros((X.shape[0],X.shape[1]))
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
-            B[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]) )[3]
+            B[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]), taus=TS[i,j]  )[3]
     ax.scatter(X.ravel(),Y.ravel(),data["bound"].ravel())
     ax.plot_wireframe(X,Y,B,color='g')
     plt.show()
@@ -263,9 +289,24 @@ if fig4opt:
     FS=np.zeros((X.shape[0],X.shape[1]))
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
-            FS[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]) )[2]
+            FS[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]), taus=TS[i,j]  )[2]
     ax.scatter(X.ravel(),Y.ravel(),data["find"].ravel())
     ax.plot_wireframe(X,Y,FS,color='g')
+    plt.show()
+
+    #Total fishers in school versus theory
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\lambda$")
+    plt.ylabel(r"$S_n$")
+    ax.set_zlabel("Bound fishers in school")
+    #ax.set_zlim3d(0, .2)
+    BHAT=np.zeros((X.shape[0],X.shape[1]))
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            BHAT[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]), taus=TS[i,j]  )[-1]
+    ax.scatter(X.ravel(),Y.ravel(),data["otot"].ravel()-data["find"].ravel()*constants['PC_n'])
+    ax.plot_wireframe(X,Y,BHAT,color='g')
     plt.show()
 
 
@@ -280,7 +321,7 @@ if fig4opt:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             Fth[i,j]=f2theo(X[i,j],*get_constants(PS_n=Y[i,j]) )+f1theo(X[i,j],*get_constants(PS_n=Y[i,j]) )
-            Fth2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]) )[-1]
+            Fth2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]), taus=TS[i,j]  )[-2]
     ax.scatter(X.ravel(),Y.ravel(),F1[:,:].ravel()+F2[:,:].ravel())
     #ax.scatter(X.ravel(),Y.ravel(),Fth[:,:].ravel() ,color='r' )
     ax.scatter(X.ravel(),Y.ravel(),Fth2[:,:].ravel() ,color='g' )
@@ -300,13 +341,22 @@ if fig4opt:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             Hth[i,j]=Htheo(X[i,j],*get_constants(PS_n=Y[i,j]) )
-            Hth2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]) )[-1]*constants["PC_q"]
+            Hth2[i,j]=fsbtheo(X[i,j],*get_constants(PS_n=Y[i,j]), taus=TS[i,j]  )[-2]*constants["PC_q"]
             #Hth2[i,j]=(1-(1-B[i,j] - FS[i,j]) - B[i,j]* )*constants["PC_q"]
     ax.scatter(X.ravel(),Y.ravel(),H[:,:].ravel())
     #ax.scatter(X.ravel(),Y.ravel(),Hth[:,:].ravel(),color='r')
     #ax.plot_wireframe(X,Y,Hth,color='r')
     ax.scatter(X.ravel(),Y.ravel(),Hth2.ravel(),color='g')
     ax.plot_wireframe(X,Y,Hth2,color='g')
+    plt.show()
+
+
+    #Catch versus theory: Section
+    fig = plt.figure()
+    plt.xlabel(r"$\lambda$")
+    plt.ylabel(r"$H$")
+    plt.scatter(X[:-1:2,-1],.5*(H[1::2,-1]+H[0:-1:2,-1]) )
+    plt.plot(X[:,-1],Hth2[:,-1],color='g')
     plt.show()
 
 
@@ -334,7 +384,7 @@ if fig4opt_cn:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             F1th[i,j]=f1theo(X[i,j],*get_constants(PC_n=Y[i,j]) )
-            F1th2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]) )[0]
+            F1th2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]), taus=TS[i,j]  )[0]
     ax.scatter(X.ravel(),Y.ravel(),(F1.ravel()))
     #ax.scatter(X.ravel(),Y.ravel(),F1th[:,:].ravel() ,color='r' )
     #ax.plot_wireframe(X,Y,F1th,color='r')
@@ -353,7 +403,7 @@ if fig4opt_cn:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             F2th[i,j]=f2theo(X[i,j],*get_constants(PC_n=Y[i,j]) )
-            F2th2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]) )[1]
+            F2th2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]), taus=TS[i,j]  )[1]
     ax.scatter(X.ravel(),Y.ravel(),F2[:,:].ravel())
     #ax.scatter(X.ravel(),Y.ravel(),F2th[:,:].ravel() ,color='r' )
     #ax.plot_wireframe(X,Y,F2th,color='r')
@@ -370,7 +420,7 @@ if fig4opt_cn:
     B=np.zeros((X.shape[0],X.shape[1]))
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
-            B[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]) )[3]
+            B[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]), taus=TS[i,j]  )[3]
     ax.scatter(X.ravel(),Y.ravel(),data["bound"].ravel())
     ax.plot_wireframe(X,Y,B,color='g')
     plt.show()
@@ -385,7 +435,7 @@ if fig4opt_cn:
     B=np.zeros((X.shape[0],X.shape[1]))
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
-            B[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]) )[2]
+            B[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]), taus=TS[i,j]  )[2]
     ax.scatter(X.ravel(),Y.ravel(),data["find"].ravel())
     ax.plot_wireframe(X,Y,B,color='g')
     plt.show()
@@ -401,7 +451,7 @@ if fig4opt_cn:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             Fth[i,j]=f2theo(X[i,j],*get_constants(PC_n=Y[i,j]) )+f1theo(X[i,j],*get_constants(PC_n=Y[i,j]) )
-            Fth2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]) )[-1]
+            Fth2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]), taus=TS[i,j]  )[-2]
     ax.scatter(X.ravel(),Y.ravel(),F1[:,:].ravel()+F2[:,:].ravel())
     #ax.scatter(X.ravel(),Y.ravel(),Fth[:,:].ravel() ,color='r' )
     #ax.plot_wireframe(X,Y,Fth,color='r')
@@ -421,7 +471,7 @@ if fig4opt_cn:
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
             Hth[i,j]=Htheo(X[i,j],*get_constants(PC_n=Y[i,j]) )
-            Hth2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]) )[-1]*constants["PC_q"]
+            Hth2[i,j]=fsbtheo(X[i,j],*get_constants(PC_n=Y[i,j]), taus=TS[i,j]  )[-2]*constants["PC_q"]
     ax.scatter(X.ravel(),Y.ravel(),H[:,:].ravel())
     #ax.scatter(X.ravel(),Y.ravel(),Hth[:,:].ravel(),color='r')
     #ax.plot_wireframe(X,Y,Hth,color='r')

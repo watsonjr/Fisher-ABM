@@ -11,15 +11,17 @@ GRD_mx2 = GRD_mx / 2 # half grid size (used in periodic bnd)
 #GRD_x  = [0:GRD_dx:GRD_mx];
 
 ##### School parameters
-PS_n   = 1 # number of schools
-PS_p   = 0.001; # probability school will move (#do I need this)
+PS_n   = 5 # number of schools
+PS_p   = 0.01; # probability school will move (#do I need this)
 
 #### Fish parameters
 PF_n	 = 10 # number of fish per school
 PF_sig = 4; # distance parameter (km)
+PF_val = [1.] #[5.,1.] ; #value per species
+PF_frac =[1.] #[0.5,0.5] ; #fraction per species
 
 ##### Fisher parameters
-PC_n   = 30; # number of fishers
+PC_n   = 1; # number of fishers
 PC_v   = 4; # max speed of fishers (km per time)
 PC_h   = 1; # distance at which fishers can catch fish (km)
 #const PC_r   = .25; # correlated random walk angle (drunk ballistic)
@@ -41,6 +43,8 @@ type Param
     PS_p::Float64
     PF_n::Int
     PF_sig::Float64
+    PF_val::Array{Float64}
+    PF_frac::Array{Float64}
     PC_n::Int
     PC_v::Float64
     PC_h::Float64
@@ -55,7 +59,7 @@ end
 
 PRM=Param(
 GRD_nx, GRD_dx, GRD_mx, GRD_mx2, #GRD_x, 
-PS_n, PS_p, PF_n, PF_sig,
+PS_n, PS_p, PF_n, PF_sig,PF_val,PF_frac,
  PC_n, PC_v, PC_h, PC_rp, PC_f,  PC_q, PC_lambda,PC_ncliq, PC_spy)
 
 DFT_PRM=deepcopy(PRM) #Default parameters
@@ -69,7 +73,7 @@ macro set_constants(struct)
     # We want to build up a block of expressions.
     block = Expr(:block)
     for f in [:GRD_nx,:GRD_dx,:GRD_mx,:GRD_mx2,
-            :PS_n, :PS_p, :PF_n, :PF_sig,
+            :PS_n, :PS_p, :PF_n, :PF_sig, :PF_val, :PF_frac,
             :PC_n, :PC_v, :PC_h, :PC_rp, :PC_f,
             :PC_q, :PC_lambda, :PC_ncliq,:PC_spy]
         # each expression in the block consists of

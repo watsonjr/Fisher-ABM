@@ -7,8 +7,8 @@
 function do_timingtest(fsave=true)
     println("Timing test")
 
-    PRM.PC_lambda = 1.
-    PRM.PC_n = 10;
+    PRM.PC_lambda = 0.
+    PRM.PC_n = 1;
     PRM.PC_f=PRM.GRD_mx*0.03
     PRM.PF_sig=PRM.GRD_mx*0.04
     PRM.PS_p = 0.001;
@@ -30,10 +30,11 @@ function do_timingtest(fsave=true)
     end
 
     school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
-    init_network(cons,FLAGS,cliq)
+    init_network(cons,FLAGS)
     FLAGS["save"]=fsave
     FLAGS["measure_frac"]=true
-    @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1,OUT);
+    FLAGS["stop"]=1  
+    @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS,OUT);
     #npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
     #npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
     #npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
@@ -50,13 +51,15 @@ function do_first_passage()
     Ts = cell(size(RP));
     PRM.PS_p=0.0
     PRM.PC_n=1
+    PRM.PS_n=1
     for i = 1:length(RP)
         PRM.PC_rp = RP[i];
         time=[]
         for iter in 1:300
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+            FLAGS["stop"]=4  
             init_network(cons,FLAGS)
-            time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS,4) ) ;
+            time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS) ) ;
         end
         Ts[i] = RP[i],mean(time),std(time);#cons.measure["Ts"], cons.measure["Tv"];
         print(i,"\n")
@@ -79,8 +82,9 @@ function do_fstpass_nschool()
         for iter in 1:300
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             init_network(cons,FLAGS)
+            FLAGS["stop"]=4  
             #pos=cons.x[1,:]
-            time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS,4) ) ;
+            time=vcat(time, make_season(school,fish,cons,fishtree,EVENTS,FLAGS) ) ;
             dist=vcat(dist, cons.measure["distance"][1])#fnc_dist(cons.x[1,:],pos))
         end
         Ts[i] = RP[i], mean(time),std(time),mean(dist);#cons.measure["Ts"], cons.measure["Tv"];
@@ -123,7 +127,8 @@ function do_spying()
     FLAGS["spying"]=true
     FLAGS["save"]=true
     init_network(cons,FLAGS)
-    make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1,OUT);
+    FLAGS["stop"]=1  
+    make_season(school,fish,cons,fishtree,EVENTS,FLAGS,OUT);
 
     
     println("Main run")
@@ -225,7 +230,7 @@ function do_fig3()
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result_noinf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]),mean(cons.measure["Hrate"]),PRM.PC_rp;
+            result_noinf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),cons.measure["math"][2],cons.measure["math"][1],mean(cons.measure["Hrate"]),PRM.PC_rp;
 
             println("With full information")
             #With information
@@ -238,7 +243,7 @@ function do_fig3()
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 
-            result_inf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]),mean(cons.measure["Hrate"]),PRM.PC_rp
+            result_inf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),cons.measure["math"][2],cons.measure["math"][1],mean(cons.measure["Hrate"]),PRM.PC_rp
 
         end
     end
@@ -289,17 +294,23 @@ end
 
 function do_fig4opt()
     println("Optimal lambda")
-    RP = linspace(0.,1.,5);
-    NS = [1,2,3,5,10,20]; #Number of schools
+    RP = linspace(0.,1.,8);
+    NS = [1,10]#[1,2,3,5,10,15,20,25]; #Number of schools
     result = cell(size(RP,1),size(NS,1));
 
-    PRM.PC_n = 2;
+    PRM.PC_n = 10;
     PRM.PC_ncliq = 1;
-    PRM.PC_f=PRM.GRD_mx*0.05
-    PRM.PF_sig=PRM.GRD_mx*0.05
-    PRM.PS_p = 0.001;
+    PRM.PC_f=PRM.GRD_mx*0.01
+    PRM.PF_sig=PRM.GRD_mx*0.04
+    PRM.PS_p = 0.1;
     PRM.PC_q = 0.1;
     PRM.PC_rp = fnc_optimal_PCrp();
+    
+    tauh=PRM.PF_n/PRM.PC_q
+    taul=1./PRM.PS_p
+    taus=fnc_taus1()
+    println("tau_h/tau_s: $(tauh/taus) tau_l/tau_s:  $(taul/taus)")
+    
     for i = 1:length(RP)
         for j=1:length(NS)
             PRM.PC_lambda = RP[i];
@@ -308,27 +319,31 @@ function do_fig4opt()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             init_network(cons,FLAGS)
             FLAGS["measure_frac"]=true
-            make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]);
+            FLAGS["stop"]=1
+            #make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
+            FLAGS["stopamount"]=PS_n*PF_n
+            nens=1
+            cons.measure,cons.series=make_ensemble(nens,FLAGS)
+            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),cons.measure["math"][2],cons.measure["math"][1],cons.measure["math"][4];
             println("$i $j")
         end
     end
-    save_results(result,R"PC_lambda PS_n taus1 \tau_s^R Hrate Hdist f1 f2 bound find","Data_Fig4opt",PRM)
+    save_results(result,R"PC_lambda PS_n taus1 \tau_s^R Hrate Hdist f1 f2 bound find otot","Data_Fig4opt",PRM)
 
 end
 
 
 function do_fig4opt_cn()
     println("Explore Lambda & Cn")
-    RP = linspace(0.,1.,10);
+    RP = linspace(0.,1.,15);
     NS = [x for x in 1:10] #[1,2,3,5,10]; #Number of fishers
     result = cell(size(RP,1),size(NS,1));
 
     PRM.PC_n = 2;
     PRM.PC_ncliq = 1;
-    PRM.PC_f=PRM.GRD_mx*0.05
-    PRM.PF_sig=PRM.GRD_mx*0.05
-    PRM.PS_p = 0.001;
+    PRM.PC_f=PRM.GRD_mx*0.04
+    PRM.PF_sig=PRM.GRD_mx*0.04
+    PRM.PS_p = 0.04;
     PRM.PC_q = 0.1;
     PRM.PS_n=10;
     PRM.PC_rp = fnc_optimal_PCrp();
@@ -340,8 +355,9 @@ function do_fig4opt_cn()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             init_network(cons,FLAGS)
             FLAGS["measure_frac"]=true
+            FLAGS["stop"]=1            
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["bound"]),mean(cons.measure["finders"]);
+            result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),cons.measure["math"][2],cons.measure["math"][1];
             println("$i $j")
         end
     end
@@ -446,7 +462,7 @@ function do_rndcliq()
         println(i)
         school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
         init_network(cons,FLAGS,cliq)
-        make_season(school,fish,cons,fishtree,EVENTS,FLAGS,1);
+        make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
         for p in 1:length(part)
             #for each element in the partition
             occur[part[p]]+=1

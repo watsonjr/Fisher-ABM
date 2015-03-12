@@ -14,13 +14,13 @@ fig2b=0
 fig3=0 #Fig3 for tausr
 fig3H=0 #Fig3 for catch rate
 fig3f=0 #Other quantities related to fig3 (analytics)
-fig4opt=0 #optimal lambda
+fig4opt=1 #optimal lambda
 fig4opt_cliq=0 #optimal ncliques
 fig4opt_comp=0 #cliques vs lambda
 rndcliq=0  #random partition of fishers into cliques
-rndcliq_explor=1  #random partition of fishers into cliques for all tauh taul
+rndcliq_explor=0  #random partition of fishers into cliques for all tauh taul
 spying=0
-worst=1 # Look for worst value of lambda depending on tauh, taul
+worst=0 # Look for worst value of lambda depending on tauh, taul
 
 
 #=========== FIGURES ==================
@@ -34,7 +34,8 @@ if firstpass:
     #print(TS)
     plt.xlabel(r'$C_p$')
     plt.ylabel('First passage time')
-    plot(TS,[tausr(*get_constants(PC_rp=x)) for x in xs],xs=xs)
+    plot([tausr(*get_constants(PC_rp=x)) for x in xs],xs=xs,hold=1)
+    scatter(xs,TS)
 
 
 if firstpass_ns:
@@ -46,7 +47,8 @@ if firstpass_ns:
     xs=data['PS_n']
     plt.xlabel(r'$S_n$')
     plt.ylabel('First passage time')
-    plot(TS,[tausr(*get_constants(PS_n=x)) for x in xs],xs=xs,log='xy')
+    plot([tausr(*get_constants(PS_n=x)) for x in xs],xs=xs,log='xy',hold=1)
+    scatter(xs,TS)
    # plt.plot(xs,[TS[0]/x for x in xs])
    # plot(xs,dist,hold=1)
     #plot(xs,[domain_size(*get_constants(PS_n=x)) for x in xs],log='xy')
@@ -59,11 +61,11 @@ if fig2a:
     TS=data['\\tau_s^R']
     F1=data["f1"]
     xs=data['PC_rp']
-    plt.plot(xs,TS)
+    plt.scatter(xs,TS)
     plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs])
     
     plt.show()
-    plt.plot(xs,F1)
+    plt.scatter(xs,F1)
     plt.plot(xs,[f1r(*get_constants(PC_rp=x)) for x in xs])
     plt.show()
 
@@ -78,8 +80,8 @@ if spying:
     xs=data['PC_spy']
     #plt.plot(xs,TS)
     #plt.show()
-    plt.plot(xs,H1)
-    plt.plot(xs,H2)
+    plt.scatter(xs,H1)
+    plt.scatter(xs,H2,c=[1,0,0])
     plt.xlabel('Spying radius')
     plt.ylabel('Catch rate')
     plt.legend(["Sheep","Wolves"])

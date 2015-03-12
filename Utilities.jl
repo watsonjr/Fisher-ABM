@@ -7,7 +7,9 @@ macro R_str(s)
 end
 
 function save_results(res,headers,fname,param=None)
-    ## Export results into a text file with name fname, including 
+    ## Export results into a fname.npy and parameters+headers in fname.dat
+    # Headers give the names of the columns in fname.npy
+     
     dim=length(size(res)) #dimension of array
     cellen=length(res[[1 for i in 1:dim]... ] ) #length of cell
     
@@ -33,3 +35,19 @@ end
 
 
 
+function make_pop(PF_frac,PF_n)
+    #Randomly distribute school population among fish species according to fractions PF_frac
+    #Version 1: The school has homogeneous population
+    #Select one species at random
+    pop=zeros(Float64,length(PF_frac))
+    sel=rand()
+    lim=0. 
+    idx=0
+    frac=PF_frac/sum(PF_frac)#Normalize just in case
+    while sel>lim
+        idx+=1
+        lim+=frac[idx]
+    end
+    pop[idx]=PF_n
+    return pop
+end

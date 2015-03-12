@@ -338,7 +338,7 @@ def sample_box(boxes):
 
 
 def make_density(data,**kwargs):
-    mat=array(data)
+    mat=array(data,dtype="float")
     if mat.shape[1]==2 :
         #data is couples (x,y)
         mat=mat.T
@@ -371,7 +371,7 @@ def make_density(data,**kwargs):
             xbin=bisct.bisect_left(bins,x)
         if xbin ==nbin: #maxvalue
             xbin=nbin-1
-        if remove0 and abs(y)>10**(-40):
+        if not remove0 or abs(y)>10**(-40):
             binnage[xbin].append(y)
     res=array([stats.describe(i)[2:]+(min(i),max(i)) if i else stats.describe([0])[2:]+(0,0) for i in binnage])
     sspercen=scipy.stats.scoreatpercentile

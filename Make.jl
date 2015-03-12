@@ -8,6 +8,8 @@ import Iterators
 unshift!(PyVector(pyimport("sys")["path"]), "") #include local folder in search
 pypartition=pyimport(:random_partition) #Random partition for experiment
 
+ fout=open("./Data/EVTS.dat", "w")
+ close(fout)
 
 #### Add functions and routines
 include("Utilities.jl");
@@ -16,6 +18,8 @@ include("sub_init.jl");
 include("sub_functions.jl");
 include("sub_routines.jl");
 include("Experiments.jl");
+include("LHF_Experiments.jl");
+include("Math_Experiments.jl");
 
 #### Switches for various experiments below
 
@@ -31,11 +35,18 @@ fig4opt_cliq=false #optimal nb cliques
 fig4opt_comp=false #cliques vs lambda
 
 rndcliq=false  #random partition of fishers into cliques
-rndcliq_explor=true  #same for every tauh taul
+rndcliq_explor=false  #same for every tauh taul
 
 worst=false #like fig3 + iteration over lambda to find min(VOI)
 
 spying=false #spying radius
+
+#### Switches for LHF experiments below
+IFQ=false
+LHFvs=false
+
+#### Switches for Math experiments below
+Math_flux=true
 
 #### Basic timing/profiling test for a single run
 
@@ -122,6 +133,23 @@ if spying
     do_spying()
 end
 
+
+if IFQ
+    reinit_parameters()
+    do_IFQ()
+end
+
+    
+
+if LHFvs
+    reinit_parameters()
+    do_LHFvs()
+end
+
+if Math_flux
+    reinit_parameters()
+    ana_flux()
+end
 #################### OLDER EXPERIMENTS #############################
 
 ####### Simple problem (raise SN entirely)

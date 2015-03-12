@@ -26,7 +26,10 @@ for i = 1:PF_n*PS_n; fish_fx[i,:,1] = mod(school_xy[fish_fs[i],:,1] +
 
 
 #### Initialize school
-school_pop=[PF_n for  school=1:PS_n]
+school_pop=transpose(make_pop(PF_frac,PF_n))
+for school=1:PS_n-1
+    school_pop=[school_pop, transpose(make_pop(PF_frac,PF_n)) ]
+end
 
 ##### Initialize fishers
 #! all we need are the locations of each fisher (x,y)
@@ -45,7 +48,7 @@ cons_Nd  = Array(Float64,PC_n,1)
 cons_Nd[:]=NaN
 DXY      = [randn(PC_n) randn(PC_n)];
 cons_dx  = DXY ./ sqrt(DXY[:,1].^2 + DXY[:,2].^2);
-cons_H   = zeros(Float64,PC_n); # catch at time t
+cons_H   = zeros(Float64,PC_n,length(PF_val)); # catch per species at time t
 cons_s   = randn(PC_n);cons_s[cons_s.<0]=-1;cons_s[cons_s.>0]=1;cons_s=int(cons_s)
 cons_mi  = int(ones(PC_n));
 cons_v   = ones(PC_n) .* PC_v;
@@ -56,14 +59,15 @@ cons_sn  = zeros(PC_n,PC_n) #.*max( eps(),PC_lambda);
 #Quantities that have to be measured during simulations
 cons_measure = ["Ts"=>zeros(Float64,PC_n), "Tv"=>zeros(Float64,PC_n) ,
     "ts"=>zeros(Float64,PC_n) , "ns"=>zeros(Float64,PC_n), 
-    "distance"=>zeros(Float64,PC_n) ]  
+    "distance"=>zeros(Float64,PC_n),"turns" =>zeros(Float64,PC_n)]  
+cons_series=Dict()
 
 ##### Initialize
 school = School(school_xy,school_fish,school_pop);
 fish = Fish(fish_fx,fish_fs);
 cons = Fishers(cons_xy,cons_Ni,cons_target,cons_Nd,cons_dx,
                cons_H,cons_s,cons_mi,cons_sn,cons_v,
-               cons_measure)
+               cons_measure,cons_series)
 OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H,cons_mi);
 
 
@@ -87,17 +91,23 @@ OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H,cons_mi);
 
 
 #Flags: Switches that control the behaviour of the simulation
- # benichou: can detect fish only at rest (in search mode)
- # rtree: Use r-tree to find nearest neighbor among fish
- # save: Print out positions of all fishers and fish to make movies
- # implicit_fish: instead of modelling discrete fish, schools are disks
- # spying: unidirectional communciation allowed
- # measure_frac: measure fraction of time spent in school
- # measure_fij: measure fraction of time spent close to other fishers (SLOW, requires measure_frac)
- # measure_H: measure catch rate
- FLAGS=(ASCIIString=>Bool)["benichou"=>true,"rtree"=>true,"save"=>false,
-    "spying"=>false,"implicit_fish"=>true,
-    "measure_frac"=>false,"measure_fij"=>false,"measure_H"=>true]
+ 
+ FLAGS=(ASCIIString=>Union(Int,Bool))[
+   "benichou"=>true, #  can detect fish only at rest (in search mode)
+    "rtree"=>true,  # Use r-tree to find nearest neighbor among fish
+    "save"=>false,  # Print out positions of all fishers and fish to make movies
+    "spying"=>false,  # unidirectional communciation allowed
+    "implicit_fish"=>true,  # instead of modelling discrete fish, schools are disks
+    "decision"=>false,  # Elaborate decision process (WIP)
+    "renewal"=>false,  # Fish are renewed over time
+    "measure_frac"=>false,  # measure_frac: measure fraction of time spent in school
+    "measure_fij"=>false,  # measure_fij: measure fraction of time spent close to other fishers (SLOW, requires measure_frac)
+    "measure_H"=>true,  # measure_H: measure catch rate (including variation over time)
+    "measure_flux"=>false,  # measure_flux: measure flux between fisher states
+    "stop"=>2,  # Stop condition
+    "stopamount"=>convert(Int,PF_n*PS_n.*20), # If the stop condition requires a parameter
+    "IFQ"=>false,  # Disable fishers once their catch reaches stopamount
+    ]
 
 
 #==== Fishtree =====#

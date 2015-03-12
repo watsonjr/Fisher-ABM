@@ -28,7 +28,8 @@ type Fishers
     MI::Array{Int} # index of steaming or searching
     SN::Array{Float64} # social network
     V::Array{Float64} # speed
-    measure::Dict{ASCIIString,Array{Float64}} # every quantity (times, frequencies) we want to measure
+    measure::Dict{ASCIIString,Any} # every quantity (times, frequencies) we want to measure
+    series::Dict{ASCIIString,Array{Float64}} # every time series we want to record
 end
 
 #### Output variable for plotting

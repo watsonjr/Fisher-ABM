@@ -37,6 +37,16 @@ function fnc_dist(pos1,pos2)
     return hypot( (dpos)%GRD_mx2-div(dpos,GRD_mx2)*GRD_mx2... )
 end
 
+#Disable a fisher entirely (stops searching around, harvesting, communicating)
+function fnc_disable_fisher(i,cons,EVENTS)
+    cons.MI[i]=-1 #disabled mode
+    cons.V[i]=0
+    cons.target[i]=0
+    cons.Ni[i]=0
+    for k in keys(EVENTS) #Remove disabled fisher from all events
+        delete!(EVENTS[k],i)
+    end
+end
 
 #### OPTIMAL TURN RATE
 #! Analytical expression of the optimal turn rate probability
@@ -72,6 +82,13 @@ function fnc_taus1()
     return (t1+t2)/(2*t1*b^2) * result3
 end
 
+### tau_h for a single fisher and tau_l (harvesting time and landscape change time)
+function taucalc()
+    @set_constants PRM
+    tauh=PF_n/PC_q
+    taul=1./PS_p
+    return tauh,taul
+end
 
 #### Get identity of school associated with a target
 function get_school(tgt,fish,FLAGS)
@@ -83,26 +100,82 @@ function get_school(tgt,fish,FLAGS)
 end
 
 ######## ABM MEASUREMENT FUNCTIONS ############################
-# Functions that are used in some simulations to measure some quantities 
+# Functions that are used in simulations to measure some quantities 
 
+function init_measurements(cons,FLAGS,EVENTS)
+    @set_constants PRM
+ cons.measure["math"]=zeros(4) #f s b bbar
+ if FLAGS["measure_frac"]
+    cons.measure["f1"]=zeros(PC_n)
+    cons.measure["f2"]=zeros(PC_n)
+    cons.measure["fij"]=zeros(PC_n)
+    EVENTS["finders"]=Set{Int}()
+ end
+ if FLAGS["measure_H"]
+    cons.series["Hflux"]=[0]
+ end
+ 
+ if FLAGS["measure_flux"]
+    for i in ("found_school","left_school","lost_school", "bound")
+        cons.series[i]=[]
+    end
+ end
+ cons.measure["dTs"] = ones(PC_n); #Difference in tau_s
+ cons.measure["dHs"] = ones(PC_n); #Difference in catch rate
+end
+
+function wrap_measurements(cons,FLAGS,OUT)
+    @set_constants PRM
+    # Export data for movie
+    if FLAGS["save"] == 1
+        npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
+        npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
+        npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
+        npzwrite("./Data/Data_cluspop.npy", OUT.schl_pop)
+        npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
+        npzwrite("./Data/Data_MI.npy", OUT.cons_MI)
+        fout=open("./Data/Data_figs.dat", "w")
+        for f in names(PRM)
+            write(fout,"$f    $(getfield(PRM,f))\n" )
+        end
+        close(fout)
+    end
+
+    turns=cons.measure["turn"]
+
+    if FLAGS["measure_frac"]
+        cons.measure["f1"]/=turns
+        cons.measure["f2"]/=turns
+        cons.measure["fij"]/=turns
+        cons.measure["math"]./=turns
+    end
+
+    if FLAGS["measure_H"]
+        Htot=sum(cons.H.*transpose(PF_val) ,2)
+        cons.measure["Htot"]=Htot
+        cons.measure["Hdist"]=Htot./ cons.measure["distance"]
+        cons.measure["Hrate"]=Htot./cons.measure["turns"]
+        cons.series["Hflux"]=cons.series["Hflux"][2:end]-cons.series["Hflux"][1:end-1]
+    end
+end
 #### HAUL TIME
 #! running time between hauls
 #! and estimate the running mean time between schools
 #! and estimate the difference in this running mean 
 #! which is the switch for the while loop
-function fnc_tau(dTs,dHs,cons,EVENTS,FLAGS,turns)
+function fnc_tau(cons,EVENTS,FLAGS)
     @set_constants PRM
-    Ts,Tv,ts,ns=cons.measure["Ts"],cons.measure["Tv"],cons.measure["ts"],cons.measure["ns"]
-    #H=cons.H;Ts=cons.Ts;ts=cons.ts;sn=cons.sn;
+    Ts,Tv,ts,ns,dTs,dHs=cons.measure["Ts"],cons.measure["Tv"],cons.measure["ts"],cons.measure["ns"],cons.measure["dTs"],cons.measure["dHs"]
+    turns=cons.measure["turn"]
 
     for I=EVENTS["left_school"]
         ts[I]=0
         if FLAGS["measure_H"]
-            dHs[I]=-cons.H[I]/turns +10. #store catch rate when leaving school (1)
+            cons.measure["dHs"][I]=-sum(cons.H.*transpose(PF_val))/turns +10. #store catch rate when leaving school (1)
         end
     end
+    
     for I=EVENTS["found_school"]
-        #println(ns,ts,Ts)
         ns[I] += 1; # update school counter
         Ts_old = Ts[I]; # current mean
         Tv_old = Tv[I]; # current variance
@@ -113,12 +186,14 @@ function fnc_tau(dTs,dHs,cons,EVENTS,FLAGS,turns)
         dTs[I] = abs(Ts[I]-Ts_old)/Ts[I]; # fractional change in mean
         ts[I] = 1; # reset how long it took to find school
         if FLAGS["measure_H"]
-            if cons.H[I]>1
-                cons.measure["Hrate"][I]=cons.H[I]/turns
-                dHs[I]=abs(1+ (dHs[I]-10.)/cons.H[I]*turns) 
+            if sum(cons.H[I,:])>1
+                dHs[I]=abs(1+ (dHs[I]-10.)/sum(cons.H[I,:].*PF_val )*turns) 
                 #compare (1) to catch rate when reaching next school
             end
         end      
+    end
+    if FLAGS["measure_H"]
+        cons.series["Hflux"]=[cons.series["Hflux"],sum(cons.H.*transpose(PF_val)) ]
     end
     for I = 1:PC_n
         ts[I]+=1
@@ -130,7 +205,7 @@ end
 
 
 ######## ABM CORE FUNCTIONS ############################
-# Functions that are used in every simulation (main behavior)
+# Functions that are used in every simulation (part of the routine)
 
 
 
@@ -153,6 +228,22 @@ function fnc_makefishtree(i,school,fish)
 end
 
 
+##### When an event happens (found school, etc.), append agent to appropriate list
+## And if events are recorded, 
+function record_event(event,i,EVENTS,FLAGS,cons)
+    if event in EVENTS
+        push!(EVENTS[event],i)
+    end
+    if FLAGS["measure_flux"]
+        tauh,taul=taucalc()
+        tmp=[(cons.measure["math"]/cons.measure["turn"])' PS_n tauh taul ] 
+        if length(cons.series[event])>0
+            cons.series[event]=[cons.series[event],tmp] 
+        else
+            cons.series[event]=tmp
+        end
+    end
+end
 
 
 #### FISH FINDER / DISTANCE
@@ -164,6 +255,8 @@ function fnc_fishfinder(school,fish,cons,fishtree,EVENTS,FLAGS)
     empty!(EVENTS["left_school"])
     empty!(EVENTS["found_school"])
     
+    #fout=open("./Data/EVTS.dat", "a")
+
     grd=GRD_mx/2
 
     Fx,Sx,Si,Cx=fish.fx,school.x,fish.fs,cons.x
@@ -190,10 +283,11 @@ function fnc_fishfinder(school,fish,cons,fishtree,EVENTS,FLAGS)
             end
             if newk!=cons.Ni[i]
                 if newk==0
-                    push!(EVENTS["left_school"],i)
+                    record_event("left_school",i,EVENTS,FLAGS,cons)
+
                 else
                     push!(EVENTS["new_neighbor"],i)
-                    push!(EVENTS["found_school"],i)
+                    record_event("found_school",i,EVENTS,FLAGS,cons)
                 end
                 cons.Ni[i]=newk
             end
@@ -209,6 +303,7 @@ function fnc_fishfinder(school,fish,cons,fishtree,EVENTS,FLAGS)
             end
         end
     end
+    #close(fout)
 
     if FLAGS["implicit_fish"]
         #Neighbors are schools, already obtained above, no need to go further
@@ -274,7 +369,7 @@ end
 
 
 #### Search/steam switch
-#! that is, is a fisher can't see any fish
+#! if a fisher can't see any fish
 #! they can either spin around or move in a straightish line
 #! they switch between this probabilistically
 function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
@@ -282,19 +377,19 @@ function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
     MI=cons.MI
     V=cons.V
     for i =  1:PC_n
-        if cons.target[i]!=0
+        if cons.target[i]!=0 || MI[i]==-1 #Fish found or fisher disabled
             continue
         end
-        #For fishers that don't have a target
+        
         if MI[i] == 1 # if searching
-            if rand() < PC_rp # maybe switch to steaming
+            if true#rand() < PC_rp # maybe switch to steaming
                 MI[i] = 0
                 V[i]=PC_v
             end
         elseif MI[i] == 0 # if steaming
-            if rand() < (1-PC_rp) # maybe switch to searching
+            if rand() < PC_rp #(1-PC_rp) # maybe switch to searching
                 MI[i] = 1
-                V[i]=PC_v/3.
+                V[i]=0#PC_v/3.
                 #Watch out for the diffusive velocity in search mode
                 #(arbitrarily set to PC_v/3 here because that fits
                 #the benichou curves with k=infinity best, but changing
@@ -320,8 +415,9 @@ function fnc_contact(school,fish,cons,fishtree,EVENTS,FLAGS)
     probing= EVENTS["new_neighbor"]  #ask to any friend who has a new neighbor
     
     for j in probing
+        CN[j,j]=1
         for i = 1:PC_n
-            if i==j
+            if i==j || cons.MI[i]==-1
                 continue
             end
             f1 = SN[i,j];
@@ -359,8 +455,70 @@ end
 #! or from random motion, knowing average proba of finding school)
 #! Two parameters: memory, allowing to integrate a signal from the
 #! same source over time; knowledge of terrain
-function fnc_decision(source,target,school,fish,cons,fishtree,EVENTS,FLAGS)
-    return 1
+function fnc_decision(id,Fx,CN,school,fish,cons,fishtree,EVENTS,FLAGS)
+    current=cons.Dmin[id]
+    dxy,Ni,Cx,MI=cons.DXY,cons.Ni,cons.x,cons.MI
+    Dmin=NaN
+    if in(id,EVENTS["in_contact"]) #If you have just talked with someone
+        # get the vector of people with whom you are currently in contact
+        J  = find(CN[id,:].==1); # index of friends
+        Jn = length(J); # number of friends 
+        # calculate distances to all targets you have info on
+        DD = fill(NaN,Jn) # distance to your target and friend's
+        Dx = fill(NaN,Jn) # dx
+        Dy = fill(NaN,Jn) # dy
+        TGT=fill(NaN,Jn) #target
+        for i = 1:Jn # for each friend
+            ii = J[i]; # get his/her index
+            jj = Ni[ii]; #get their fish
+            TGT[i]=jj
+            if jj != 0 && !isnan(Fx[jj,1]) # if they see a fish
+                (dx,dy) = fnc_difference(Fx[jj,:],Cx[id,:]);
+                DD[i] = hypot(dx,dy); # and distance
+                Dx[i] = dx; Dy[i] = dy;
+            end
+        end
+    else
+        #Only your own fish
+        if  Ni[id]!=0 && isnan(current) 
+            J=[id,]
+            Jn=1
+            jj=Ni[id]
+            (dx,dy) = fnc_difference(Fx[jj,:],Cx[id,:]);
+            Dx=[dx,]; Dy=[dy,];
+            DD=[hypot(dx,dy),]
+            TGT=[id,]
+        else
+            Jn=0
+            return cons.target[id],cons.DXY[id],cons.Dmin[id]
+        end
+    end
+    Dmin = NaN
+    Dxy=  cons.DXY[id,:]
+
+    target=0
+    if !FLAGS["decision"]
+        #Basic decision process: go to closest
+        if Jn>0
+            ii= indmin(DD) #nearest
+            jj = Ni[J[ii]]
+            Dxy = [Dx[ii] Dy[ii]] ./ norm([Dx[ii] Dy[ii]]);  # calculate unit vector DXY to nearest fish
+            Dmin = DD[ii]; # shortest distance to a target
+        end
+        if ( !isnan(Dmin)  && (isnan(current) || Dmin<current ) )
+            target=jj
+        elseif  in(id,EVENTS["targeting"]) && !isnan(current) 
+            #Stay with current target
+            target=cons.target[id]
+            Dxy=cons.DXY[id,:]
+            Dmin=cons.Dmin[id]
+        end
+    else
+        #Advanced decision process
+        taus=fnc_taus1()
+    end
+    return target,Dxy,Dmin
+    
 end
 
 #### INFORMATION and fisher direction
@@ -373,7 +531,7 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
     @set_constants PRM
     #In this function we manage targeting events
     
-    dxy,Ni,Cx,MI=cons.DXY,cons.Ni,cons.x,cons.MI
+    #fout=open("./Data/EVTS.dat", "a")
     
     if FLAGS["implicit_fish"]
         #Neighbors are schools rather than fish
@@ -382,6 +540,7 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
         Fx=fish.fx
     end
 
+    dxy,Ni,Cx,MI=cons.DXY,cons.Ni,cons.x,cons.MI
     DMIN,DXY=cons.Dmin,cons.DXY # shortest distance & unit vector
     V     = cons.V # speed
 
@@ -400,67 +559,37 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             #end
             delete!(EVENTS["targeting"],id)
             delete!(EVENTS["bound"],id)
+            
+            if FLAGS["measure_flux"]
+                record_event("lost_school",id,EVENTS,FLAGS,cons)
+            end
             V[id]=PC_v #Restore speed to normal value
         end
     end
     
     for id = 1:PC_n
-        current=cons.Dmin[id]
-        Dmin=NaN
-        if in(id,EVENTS["in_contact"]) #If you have just talked with someone
-            # get the vector of people with whom you are currently in contact
-            J  = find(CN[id,:].==1); # index of friends
-            Jn = length(J); # number of friends 
-            # calculate distances to all targets you have info on
-            DD = fill(NaN,Jn) # distance to your target and friend's
-            Dx = fill(NaN,Jn) # dx
-            Dy = fill(NaN,Jn) # dy
-            for i = 1:Jn # for each friend
-                ii = J[i]; # get his/her index
-                jj = Ni[ii]; #get their fish
-                if jj != 0 && !isnan(Fx[jj,1]) # if they see a fish
-                    (dx,dy) = fnc_difference(Fx[jj,:],Cx[id,:]);
-                    DD[i] = hypot(dx,dy); # and distance
-                    Dx[i] = dx; Dy[i] = dy;
-                end
-            end
-            ii= indmin(DD) #nearest
-            jj = Ni[J[ii]]
-            Dxy = [Dx[ii] Dy[ii]] ./ norm([Dx[ii] Dy[ii]]);  # calculate unit vector DXY to nearest fish
-            Dmin = DD[ii]; # shortest distance to a target
-        else
-            #Only your own fish
-            if  Ni[id]!=0 && isnan(current) 
-                jj=Ni[id]
-                (dx,dy) = fnc_difference(Fx[jj,:],Cx[id,:]);
-                Dmin = hypot(dx,dy); # and distance
-                Dxy = [dx dy] ./ norm([dx dy]);
-            else
-                Dmin = NaN
-                Dxy=  cons.DXY[id,:]
-            end
-        end
-
+        Dxy=DXY[id,:]
+        Dmin=DMIN[id]
+        target,Dxy,Dmin=fnc_decision(id,Fx,CN,school,fish,cons,fishtree,EVENTS,FLAGS)
         # Decide which target to choose
-        if  !isnan(Dmin)  && (isnan(current) || Dmin<current ) 
+        if target!=cons.target[id]
             # if I see anything better than current target (if any)
             if in(id,EVENTS["targeting"])
                 #In case the fisher was previously bound
                 delete!(EVENTS["bound"],id)
             end
-            if jj!=cons.Ni[id]
+            
+            if target!=cons.Ni[id]
                 #If the target is not own neighbour
-                push!(EVENTS["bound"],id)
+                record_event("bound",id,EVENTS,FLAGS,cons)
             elseif FLAGS["measure_frac"]
                 push!(EVENTS["finders"],id)
             end
             push!(EVENTS["targeting"],id)
-            cons.target[id]=jj
-        elseif  in(id,EVENTS["targeting"]) && !isnan(current) 
-            #Stay with current target
-            Dxy=cons.DXY[id,:]
-            Dmin=cons.Dmin[id]
-        else 
+            
+            cons.target[id]=target
+            cons.V[id]=PC_v
+        elseif target==0
             # else I roam around randomly 
             cons.target[id]=0
             delete!(EVENTS["targeting"],id)
@@ -489,18 +618,19 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             end
         end
         # slow speed
-        if ! isnan(Dmin) && Dmin<PC_h
-            V[id] = PC_v / 5
-        end
+        #if ! isnan(Dmin) && Dmin<PC_h
+        #    V[id] = PC_v / 5
+        #end
         # Store
         DXY[id,:] = Dxy
         DMIN[id] = Dmin
     end
+    #close(fout)
 
 end
 
 
-#### HARVEST for a season
+#### HARVEST
 function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
     @set_constants PRM
     empty!(EVENTS["captor"]) #In this function we manage capture events
@@ -538,11 +668,14 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
             
             if FLAGS["implicit_fish"]
                 #If the school is a simple disk with a population variable
-                cons.V[i]=0 #stop ship (maybe not necessary)
-                school.pop[tgt]-=PC_q #use probability of catch as depletion rate
-                cons.H[i]+=PC_q
+                #cons.V[i]=0 #stop ship (maybe not necessary)
+                species=school.pop[tgt,:]/sum(school.pop[tgt,:]) #array of current species
+                delta=min(school.pop[tgt,:],PC_q*species)  #use probability of catch as depletion rate
+                school.pop[tgt,:]-=delta
+                cons.H[i,:]+=delta
             else
                 #For explicit fish
+                #TODO: Deal with mutiple species!
                 fx=FX[tgt,:] #position of the target
                 if isnan(fx[1]) #if the same fish was captured by someone else
                     continue
@@ -565,11 +698,29 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
             end
         end
     end
+    
+    #For explicit fish
     if !FLAGS["implicit_fish"]
         for i=EVENTS["captor"]
             CH[i] += 1./nbcaptors[i]; #Fisher gets proportion of fish
         end
     end
+
+    #If the schools are renewed instead of jumping
+    if FLAGS["implicit_fish"] & FLAGS["renewal"]
+        school.pop=min(PF_n,school.pop+PS_p.*PF_frac)
+    end
+
+    #In case of individual fishing quotas
+    #disable fisher if they have reached their quota
+    if FLAGS["IFQ"] 
+        for i in EVENTS["targeting"]
+           if sum(cons.H[i,:].*PF_val)>=FLAGS["stopamount"]
+                fnc_disable_fisher(i,cons,EVENTS)
+            end
+        end
+    end
+
     
     if FLAGS["measure_frac"] 
         #Fraction of time spent by:
@@ -579,17 +730,16 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         
         #Number of fishers per school
         schfreq=hist(schools,0.5:PS_n+0.5 )[2]
-        #println(schfreq,schools,PS_n,PC_n)
+        cons.measure["math"][3]+=length(find(schfreq)) #Number of occupied schools
+        cons.measure["math"][4]+=sum(schfreq) #number of people in school
         
         #Number of fishers in a school with k fishers
         fk=hist(schfreq,0.5:PC_n+0.5 )[2]
         
-        cons.measure["finders"]+=length(EVENTS["finders"])/PC_n
+        cons.measure["math"][1]+=length(EVENTS["finders"])/PC_n
+        cons.measure["math"][2]+=length(EVENTS["bound"])/PC_n
         
         for i=1:PC_n
-            if in(i,EVENTS["bound"])
-                cons.measure["bound"][i]+=1
-            end
             if schools[i]>0
                 others=schfreq[schools[i]]-1 #Number of other fishers in same school
                 if others==0
@@ -624,12 +774,17 @@ function fnc_move(school,fish,cons,fishtree,EVENTS,FLAGS)
     # schools and fish move
     empty!(EVENTS["jumped"])
     for i = 1:PS_n
-        if school.pop[i]<1 || rand() < PS_p # if no fish left in school or randomly, jump
+        if sum(school.pop[i,:])<1 || rand() < PS_p # if no fish left in school or randomly, jump
+            if FLAGS["renewal"]
+                #Renewal rather than jump
+                push!(EVENTS["jumped"],i);
+                continue
+            end
             j = school.fish[:,i];
             CL_x = rand() * GRD_mx; #center location
             CL_y = rand() * GRD_mx;
             CL[i,:] = [CL_x CL_y];
-            school.pop[i]=length(j) #restore population counter to base level
+            school.pop[i,:]=transpose(make_pop(PF_frac,PF_n)) #restore population counter to base level
             push!(EVENTS["jumped"],i);
             if FLAGS["implicit_fish"]
                 continue
@@ -643,12 +798,17 @@ function fnc_move(school,fish,cons,fishtree,EVENTS,FLAGS)
         end
     end
 
+
+    for i=find(x->x!=-1,cons.MI) # Excepting all disabled fishers (MI==-1)
+        cons.measure["turns"][i]+=1 #increase time at sea
+    end
+    
     # fishers move
-    # slow down as you approach fish
-    #v = Dm; v[v.<PC_h] = PC_h; v[v.>PC_f] = PC_f;
-    #v = (v .- PC_h) ./ (PC_f-PC_h);
-    #range2 = PC_v - PC_vmn;
-    #V = (v*range2) .+ PC_vmn;
+            # slow down as you approach fish
+            #v = Dm; v[v.<PC_h] = PC_h; v[v.>PC_f] = PC_f;
+            #v = (v .- PC_h) ./ (PC_f-PC_h);
+            #range2 = PC_v - PC_vmn;
+            #V = (v*range2) .+ PC_vmn;
 
      
      for f=EVENTS["targeting"]
@@ -660,8 +820,8 @@ function fnc_move(school,fish,cons,fishtree,EVENTS,FLAGS)
              cons.Dmin[f]-=cons.V[f]
          else
              #Slow down approach to avoid overshooting the target
-             cons.V[f]/=10
-             cons.Dmin[f]-=cons.V[f]
+             cons.V[f]= cons.Dmin[f]
+             cons.Dmin[f]=0
          end
      end
 
@@ -672,7 +832,6 @@ function fnc_move(school,fish,cons,fishtree,EVENTS,FLAGS)
          cons.measure["distance"][f]+=V[f]
      end
 
-    #return FX,CL,CC
 end
 
 

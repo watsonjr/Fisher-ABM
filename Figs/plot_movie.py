@@ -57,10 +57,18 @@ for i in np.arange(0,min(maxpic,Fish.shape[2])):
         plt.plot(x,y,'o',alpha=0.5,mec='none',color=[.3,.3,1.],ms=9);
         plt.plot(xl,yl,'^',alpha=1,mec='none',color=[0,1,0],ms=9);
     else:
-        plt.scatter(xl,yl,s=3.14*convert_dist(ax,PF_sig)**2* Pop[:,i]/PF_n,alpha=.4 );
+        #plt.scatter(xl,yl,s=3.14*convert_dist(ax,PF_sig)**2* Pop[:,i]/PF_n,alpha=.4 );
+        ttt=np.array([.3,.3,1.])
+        www=np.array([1.,1.,1.])
+        plt.scatter(xl,yl,s=3.14*convert_dist(ax,PF_sig)**2,alpha=.4,color=[www +(ttt-www) * Pop[j,0,i]/PF_n for j in range(PS_n)] );
     plt.scatter(xc,yc,alpha=.3,color=[1,0,0],s=3.14*convert_dist(ax,PC_f)**2);
     #plt.scatter(xc,yc,alpha=1,c=[[1,(ca%PF_n)/PF_n,(ca%PF_n)/PF_n] for ca in Harv[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
-    plt.scatter(xc,yc,alpha=1,c=[[1,0,0] if mi else [1,1,1] for mi in MI[:,i]],s=3.14*convert_dist(ax,PC_h)**2);
+    
+    colors=[1,0,0]
+    #colors=[[1,0,0] if mi else [1,1,1] for mi in MI[:,i]]
+    #colors=[[1,1,1] if i>0 and Harv[f,i]!=Harv[f,i-1] else [1,0,0] for  f in range(PC_n)]
+    
+    plt.scatter(xc,yc,alpha=1,s=3.14*convert_dist(ax,PC_h)**2,c=colors);
     plt.xticks([]);
     plt.yticks([]);
 
