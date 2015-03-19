@@ -102,6 +102,9 @@ end
 ######## ABM MEASUREMENT FUNCTIONS ############################
 # Functions that are used in simulations to measure some quantities 
 
+
+# Initialize all arrays that are used to contain measured quantities
+# They are activated by flags
 function init_measurements(cons,FLAGS,EVENTS)
     @set_constants PRM
  cons.measure["math"]=zeros(4) #f s b bbar
@@ -124,6 +127,7 @@ function init_measurements(cons,FLAGS,EVENTS)
  cons.measure["dHs"] = ones(PC_n); #Difference in catch rate
 end
 
+# At the end of a run, wrap up the measurements
 function wrap_measurements(cons,FLAGS,OUT)
     @set_constants PRM
     # Export data for movie
@@ -158,6 +162,7 @@ function wrap_measurements(cons,FLAGS,OUT)
         cons.series["Hflux"]=cons.series["Hflux"][2:end]-cons.series["Hflux"][1:end-1]
     end
 end
+
 #### HAUL TIME
 #! running time between hauls
 #! and estimate the running mean time between schools
@@ -229,14 +234,14 @@ end
 
 
 ##### When an event happens (found school, etc.), append agent to appropriate list
-## And if events are recorded, 
+## And if events are recorded, note the current state (number of searching, bound, etc. fishers)
 function record_event(event,i,EVENTS,FLAGS,cons)
-    if event in EVENTS
+    if event in keys(EVENTS)
         push!(EVENTS[event],i)
     end
-    if FLAGS["measure_flux"]
+    if FLAGS["measure_flux"] && "states" in keys(cons.series)
         tauh,taul=taucalc()
-        tmp=[(cons.measure["math"]/cons.measure["turn"])' PS_n tauh taul ] 
+        tmp=[cons.series["states"][end,:] tauh taul ]  #Record current states
         if length(cons.series[event])>0
             cons.series[event]=[cons.series[event],tmp] 
         else
@@ -245,6 +250,24 @@ function record_event(event,i,EVENTS,FLAGS,cons)
     end
 end
 
+#### Typical distance between fishermen
+function measure_dist(cons)
+    @set_constants PRM
+    D=[]
+    if PC_n==1
+        return 0
+    end
+    for i=2:PC_n
+        for j=1:i
+            if length(D)>0
+                D=[D fnc_dist( cons.x[i,:],cons.x[j,:])]
+            else
+                D=fnc_dist( cons.x[i,:],cons.x[j,:])
+            end
+        end
+    end
+    return [mean(D) std(D)]
+end
 
 #### FISH FINDER / DISTANCE
 #!calculate distances between fishermen and nearest target if any within scope
@@ -260,7 +283,7 @@ function fnc_fishfinder(school,fish,cons,fishtree,EVENTS,FLAGS)
     grd=GRD_mx/2
 
     Fx,Sx,Si,Cx=fish.fx,school.x,fish.fs,cons.x
-    
+
     # First, find nearby schools
     II = cell(PC_n); # index of schools close to each fisher
     for i = 1:PC_n
@@ -558,11 +581,13 @@ function fnc_information(CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             #    delete!(EVENTS["finders"],id)
             #end
             delete!(EVENTS["targeting"],id)
-            delete!(EVENTS["bound"],id)
             
             if FLAGS["measure_flux"]
-                record_event("lost_school",id,EVENTS,FLAGS,cons)
+                if in(id,EVENTS["bound"])
+                    record_event("lost_school",id,EVENTS,FLAGS,cons)
+                end
             end
+            delete!(EVENTS["bound"],id)
             V[id]=PC_v #Restore speed to normal value
         end
     end
@@ -722,7 +747,7 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
     end
 
     
-    if FLAGS["measure_frac"] 
+    if FLAGS["measure_frac"] ||  FLAGS["measure_flux"]
         #Fraction of time spent by:
         #f1: one fisher in a school
         #f2: two fishers in the same school
@@ -730,15 +755,31 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         
         #Number of fishers per school
         schfreq=hist(schools,0.5:PS_n+0.5 )[2]
-        cons.measure["math"][3]+=length(find(schfreq)) #Number of occupied schools
-        cons.measure["math"][4]+=sum(schfreq) #number of people in school
+        tmp = [length(EVENTS["finders"]) length(EVENTS["bound"]) length(find(schfreq)) sum(schools.>0)]
+        cons.measure
+        cons.measure["math"][3]+=tmp[3] #Number of occupied schools
+        cons.measure["math"][4]+=tmp[4] #number of people in school
         
         #Number of fishers in a school with k fishers
         fk=hist(schfreq,0.5:PC_n+0.5 )[2]
         
-        cons.measure["math"][1]+=length(EVENTS["finders"])/PC_n
-        cons.measure["math"][2]+=length(EVENTS["bound"])/PC_n
+        cons.measure["math"][1]+=tmp[1]
+        cons.measure["math"][2]+=tmp[2]
+        if !( "states" in keys(cons.series))
+            cons.series["states"]=tmp
+        else
+            cons.series["states"]=[cons.series["states"],tmp]
+        end
+        D=[cons.measure["turn"] measure_dist(cons)]
+        if "dist" in keys(cons.series)
+            cons.series["dist"]=[cons.series["dist"],D]
+        else
+            cons.series["dist"]=D
+        end
+
+    end
         
+    if FLAGS["measure_frac"] 
         for i=1:PC_n
             if schools[i]>0
                 others=schfreq[schools[i]]-1 #Number of other fishers in same school

@@ -1,7 +1,7 @@
 from plot_benchcore import *
 
-IFQ=0
-LHFvs=1
+IFQ=1
+LHFvs=0
 
 if IFQ:
     #=========== FIGURE 4 - OPTIMIZATION ==================
@@ -12,6 +12,30 @@ if IFQ:
     Y=np.log10(data['quota'])
     TS=data['tausr']
     H=data['H']
+
+
+    #Catch versus theory
+    H=data['Hrate']
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\lambda$")
+    plt.ylabel(r"$S_n$")
+    ax.set_zlabel(r"$H$")
+    Hth=np.zeros((X.shape[0],X.shape[1]))
+    Hth2=np.zeros((X.shape[0],X.shape[1]))
+    TSth=np.zeros((X.shape[0],X.shape[1]))
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            Hth[i,j]=Htheo(X[i,j],*get_constants(PC_lambda=X[i,j]) )
+            Hth2[i,j]=fsbtheo(X[i,j],*get_constants(PC_lambda=X[i,j])  )[-2]*constants["PC_q"] #
+            #TSth[i,j]=tausr(*get_constants() )
+    
+    ax.scatter(X.ravel(),Y.ravel(),H.ravel())
+    ax.scatter(X.ravel(),Y.ravel(),Hth2.ravel(),color='g')
+    ax.plot_wireframe(X,Y,Hth2,color='g')
+    plt.show()
+
+
 
     variables= ('H','Hrate','Hstd','Hfluxstd')
     labels=(r'$H$ dist',r'$H$ rate', r'std(H)',r'std(flux)')
@@ -37,6 +61,21 @@ if IFQ:
             plt.pcolor(X,Y,H[:,:], cmap=mycmap,vmin =min(H[:,:].ravel()), vmax=max(H[:,:].ravel()))
             plt.colorbar()
             plt.show()
+
+
+if 0:
+    #=========== FIGURE 4 - OPTIMIZATION ==================
+    filename="Data_Fig4opt"
+    set_constants(filename)
+    data=load_data(filename) 
+    X=data['PC_lambda']
+    Y=data['PS_n']
+    TS=data['\\tau_s^R']
+    F1=data['f1']
+    F2=data['f2']
+    H=data['Hrate']
+    
+
 
 
 if LHFvs:

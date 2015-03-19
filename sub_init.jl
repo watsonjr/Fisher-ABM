@@ -105,7 +105,7 @@ OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H,cons_mi);
     "measure_H"=>true,  # measure_H: measure catch rate (including variation over time)
     "measure_flux"=>false,  # measure_flux: measure flux between fisher states
     "stop"=>2,  # Stop condition
-    "stopamount"=>convert(Int,PF_n*PS_n.*20), # If the stop condition requires a parameter
+    "stopamount"=>convert(Int,PF_n*PS_n.*PC_n*20), # If the stop condition requires a parameter
     "IFQ"=>false,  # Disable fishers once their catch reaches stopamount
     ]
 

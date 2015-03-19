@@ -11,8 +11,8 @@ function do_IFQ()
     PRM.PF_n = 100
     PRM.PS_n = int(round(.05 / (pi *PRM.PF_sig^2 /PRM.GRD_nx^2 ) )) ;
     
-    RP = logspace(log10(PRM.PF_n/2),log10(PRM.PF_n*PRM.PS_n.*10),8);
-    LAM = linspace(0.,1.,8);
+    RP = logspace(log10(PRM.PF_n/2),log10(PRM.PF_n*PRM.PS_n.*10),4);
+    LAM = linspace(0.,1.,4);
     result = cell(size(RP,1),size(LAM,1));
     
     for i = 1:length(RP)

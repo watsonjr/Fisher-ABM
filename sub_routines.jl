@@ -24,7 +24,11 @@ function make_ensemble(nens,FLAGS)
         
         #All the time series in cons.series are concatenated
         for k in keys(cons.series)
-            series[k] = [series[k],cons.series[k]]
+            if length(series[k])==0
+                series[k] = cons.series[k]
+            elseif length(cons.series[k])!=0
+                series[k] = [series[k],cons.series[k]]
+            end
         end
     end
     for k in keys(measure) #Rescale measured quantities

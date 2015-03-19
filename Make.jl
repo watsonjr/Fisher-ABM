@@ -29,7 +29,7 @@ fig2a=false #Fig2a: search time 1 fisher vs C_rp
 fig2b=false #Fig2b: search time 1 fisher vs Cf, Fsigma 
 fig2c=false #Fig2b: search time 1 fisher vs S_p, C_q 
 fig3=false #Fig3: VOI against tau_h/tau_s, tau_l/tau_s
-fig4opt=false  #optimal lambda
+fig4opt=true  #optimal lambda
 fig4opt_cn=false  #optimal lambda
 fig4opt_cliq=false #optimal nb cliques
 fig4opt_comp=false #cliques vs lambda
@@ -46,7 +46,7 @@ IFQ=false
 LHFvs=false
 
 #### Switches for Math experiments below
-Math_flux=true
+Math_flux=false
 
 #### Basic timing/profiling test for a single run
 

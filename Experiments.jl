@@ -294,8 +294,8 @@ end
 
 function do_fig4opt()
     println("Optimal lambda")
-    RP = linspace(0.,1.,8);
-    NS = [1,10]#[1,2,3,5,10,15,20,25]; #Number of schools
+    RP = linspace(0.01,1.,8);
+    NS = [1,2,3,5,10,15,20,25]; #Number of schools
     result = cell(size(RP,1),size(NS,1));
 
     PRM.PC_n = 10;
@@ -321,7 +321,7 @@ function do_fig4opt()
             FLAGS["measure_frac"]=true
             FLAGS["stop"]=1
             #make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            FLAGS["stopamount"]=PS_n*PF_n
+            FLAGS["stopamount"]=PS_n*PF_n*PC_n*10
             nens=1
             cons.measure,cons.series=make_ensemble(nens,FLAGS)
             result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),cons.measure["math"][2],cons.measure["math"][1],cons.measure["math"][4];
