@@ -56,23 +56,27 @@ function fnc_optimal_PCrp()
     v=PC_v
     a=PC_f+PF_sig#min(PF_sig,PF_n*PC_f/(2*pi) )
     b=(a+GRD_mx/sqrt(PS_n) )/2.
-    if log(b/a)>.5
-        tau2=max(1.01,(a/v * sqrt( log(b/a) -1./2.)))
-    else
-        println("$a $b $(PS_n) $(PF_sig) $(PS_n*pi*PF_sig^2/GRD_mx^2) ")
-        return 0.001
-    end
+   # if log(b/a)>.5
+   #     tau2=max(1.01,(a/v * sqrt( log(b/a) -1./2.)))
+   # else
+   #     println("$a $b $(PS_n) $(PF_sig) $(PS_n*pi*PF_sig^2/GRD_mx^2) ")
+   #     return 0.001
+   # end
+    tau2=max(1.001,(a/v * sqrt( log(b/a) +1./2.)))
     return 1.-1./tau2
 end
 
 #### Benichou estimate for tau_s of a single fisher
-function fnc_taus1()
+function fnc_taus1(pcrp=None)
     @set_constants PRM
     v=PC_v
     a=PC_f+PF_sig
     b=(a+GRD_mx/sqrt(PS_n) )/2.
-    t2=1./(1.-PC_rp) #avg time of straight flight
-    t1=1./(PC_rp) #avg time of search
+    if pcrp!=None
+        PC_rp=pcrp
+    end
+    t2=1./(PC_rp)  #/(1.-PC_rp) #avg time of straight flight
+    t1=1.#avg time of tumble
     xy=sqrt(2)/v/t2
     x=a*xy
     y=b*xy
@@ -132,13 +136,18 @@ function wrap_measurements(cons,FLAGS,OUT)
     @set_constants PRM
     # Export data for movie
     if FLAGS["save"] == 1
-        npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
-        npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
-        npzwrite("./Data/Data_clusters.npy", OUT.schl_xy)
-        npzwrite("./Data/Data_cluspop.npy", OUT.schl_pop)
-        npzwrite("./Data/Data_harvest.npy", OUT.cons_H)
-        npzwrite("./Data/Data_MI.npy", OUT.cons_MI)
-        fout=open("./Data/Data_figs.dat", "w")
+        if !in("savepath",keys(FLAGS))
+            path="./Data/"
+        else
+            path=FLAGS["savepath"]
+        end
+        npzwrite("$(path)Data_fish.npy", OUT.fish_xy)
+        npzwrite("$(path)Data_fishers.npy", OUT.cons_xy)
+        npzwrite("$(path)Data_clusters.npy", OUT.schl_xy)
+        npzwrite("$(path)Data_cluspop.npy", OUT.schl_pop)
+        npzwrite("$(path)Data_harvest.npy", OUT.cons_H)
+        npzwrite("$(path)Data_MI.npy", OUT.cons_MI)
+        fout=open("$(path)Data_figs.dat", "w")
         for f in names(PRM)
             write(fout,"$f    $(getfield(PRM,f))\n" )
         end
@@ -201,7 +210,9 @@ function fnc_tau(cons,EVENTS,FLAGS)
         cons.series["Hflux"]=[cons.series["Hflux"],sum(cons.H.*transpose(PF_val)) ]
     end
     for I = 1:PC_n
-        ts[I]+=1
+        if cons.target[I]==0 #add to search time only if no current target
+            ts[I]+=1
+        end
     end
 
     return
@@ -260,9 +271,9 @@ function measure_dist(cons)
     for i=2:PC_n
         for j=1:i
             if length(D)>0
-                D=[D fnc_dist( cons.x[i,:],cons.x[j,:])]
+                push!(D, fnc_dist( cons.x[i,:],cons.x[j,:]))
             else
-                D=fnc_dist( cons.x[i,:],cons.x[j,:])
+                D=[fnc_dist( cons.x[i,:],cons.x[j,:])]
             end
         end
     end
@@ -367,7 +378,7 @@ function fnc_fishfinder(school,fish,cons,fishtree,EVENTS,FLAGS)
             end
             if newk!=Ni[i]
                 if newk!=0
-                    if Ni[i]==0 && ts[i]>4*min(PC_f,PF_sig)/PC_v
+                    if Ni[i]==0  && ts[i]>4*min(PC_f,PF_sig)/PC_v
                         push!(EVENTS["found_school"],i)
                     end
                     push!(EVENTS["new_neighbor"],i)
@@ -404,19 +415,15 @@ function fnc_steam(school,fish,cons,fishtree,EVENTS,FLAGS)
             continue
         end
         
-        if MI[i] == 1 # if searching
-            if true#rand() < PC_rp # maybe switch to steaming
+        if MI[i] == 1 # if tumbling
+            if true#rand() < PC_rp # switch to steaming
                 MI[i] = 0
                 V[i]=PC_v
             end
         elseif MI[i] == 0 # if steaming
-            if rand() < PC_rp #(1-PC_rp) # maybe switch to searching
+            if rand() < PC_rp #(1-PC_rp) # maybe switch to tumbling
                 MI[i] = 1
-                V[i]=0#PC_v/3.
-                #Watch out for the diffusive velocity in search mode
-                #(arbitrarily set to PC_v/3 here because that fits
-                #the benichou curves with k=infinity best, but changing
-                #this doesn't change the optimal value of PC_rp anyway)
+                V[i]=0
             end
         end
     end
@@ -513,7 +520,7 @@ function fnc_decision(id,Fx,CN,school,fish,cons,fishtree,EVENTS,FLAGS)
             TGT=[id,]
         else
             Jn=0
-            return cons.target[id],cons.DXY[id],cons.Dmin[id]
+            return cons.target[id],cons.DXY[id,:],cons.Dmin[id]
         end
     end
     Dmin = NaN
@@ -686,10 +693,7 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         if Dmin[i]<Dharvest #If the target is within harvesting distance
             tgt=TGT[i]
             
-            if FLAGS["measure_frac"]
-                #Add to time spent in school
-                schools[i]=get_school(tgt,fish,FLAGS)
-            end
+            schools[i]=get_school(tgt,fish,FLAGS)
             
             if FLAGS["implicit_fish"]
                 #If the school is a simple disk with a population variable
@@ -755,7 +759,7 @@ function fnc_harvest(school,fish,cons,fishtree,EVENTS,FLAGS);
         
         #Number of fishers per school
         schfreq=hist(schools,0.5:PS_n+0.5 )[2]
-        tmp = [length(EVENTS["finders"]) length(EVENTS["bound"]) length(find(schfreq)) sum(schools.>0)]
+        tmp = [PC_n-length(EVENTS["bound"]) length(EVENTS["finders"]) length(EVENTS["bound"]) sum(schools.>0)-length(EVENTS["finders"]) length(find(schfreq)) ]
         cons.measure
         cons.measure["math"][3]+=tmp[3] #Number of occupied schools
         cons.measure["math"][4]+=tmp[4] #number of people in school

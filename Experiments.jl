@@ -8,15 +8,18 @@ function do_timingtest(fsave=true)
     println("Timing test")
 
     PRM.PC_lambda = 0.
-    PRM.PC_n = 1;
+    PRM.PC_n = 2;
     PRM.PC_f=PRM.GRD_mx*0.03
-    PRM.PF_sig=PRM.GRD_mx*0.04
-    PRM.PS_p = 0.001;
+    PRM.PF_sig=PRM.GRD_mx*0.01
+    PRM.PS_p = 0.01;
     PRM.PC_q = 1.;
-    PRM.PS_n = 10;
-    PRM.PF_n = 100;
+    PRM.PS_n = 6;
+    PRM.PF_n = 20;
+    PRM.PC_lambda =0;
+    
     
     PRM.PC_rp = fnc_optimal_PCrp();
+    println("Turn rate: ",PRM.PC_rp)
     tauh=PRM.PF_n/PRM.PC_q
     taul=1./PRM.PS_p
     taus=fnc_taus1()
@@ -33,7 +36,9 @@ function do_timingtest(fsave=true)
     init_network(cons,FLAGS)
     FLAGS["save"]=fsave
     FLAGS["measure_frac"]=true
-    FLAGS["stop"]=1  
+    FLAGS["stop"]=1
+    FLAGS["stopamount"]=200
+    FLAGS["IFQ"]=false  
     @time  make_season(school,fish,cons,fishtree,EVENTS,FLAGS,OUT);
     #npzwrite("./Data/Data_fish.npy", OUT.fish_xy)
     #npzwrite("./Data/Data_fishers.npy", OUT.cons_xy)
@@ -64,7 +69,7 @@ function do_first_passage()
         Ts[i] = RP[i],mean(time),std(time);#cons.measure["Ts"], cons.measure["Tv"];
         print(i,"\n")
     end
-    save_results(Ts,R"PC_rp \tau_s^R std","Data_firstpass",PRM)
+    save_results(Ts,R"PC_rp taus std","Data_firstpass",PRM)
 end
 
 function do_fstpass_nschool()
@@ -90,7 +95,7 @@ function do_fstpass_nschool()
         Ts[i] = RP[i], mean(time),std(time),mean(dist);#cons.measure["Ts"], cons.measure["Tv"];
         print("$i $(RP[i]) schools ($(3.14159*PRM.PF_sig^2 * RP[i]/GRD_mx^2 *100)\% covering) \n")
     end
-    save_results(Ts,R"PS_n \tau_s^R std, dist","Data_firstpass_ns",PRM)
+    save_results(Ts,R"PS_n taus std dist","Data_firstpass_ns",PRM)
 end
 
 function do_fig2a()
@@ -98,18 +103,19 @@ function do_fig2a()
     println("Typical search time")
     RP = linspace(0.2,.9,20);
     PRM.PC_n=1
+    PRM.PS_n=3
     result = cell(size(RP));
 
     for i = 1:length(RP)
         PRM.PC_rp = RP[i];
         school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
-        FLAGS["measure_frac"]=true
+        #FLAGS["measure_frac"]=true
         init_network(cons,FLAGS)
         make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-        result[i] = RP[i],mean(cons.measure["Ts"]), mean(cons.measure["Tv"]),mean(cons.measure["f1"]);
+        result[i] = RP[i],mean(cons.measure["Ts"]), mean(cons.measure["Tv"])#,mean(cons.measure["f1"]);
         print(i,"\n")
     end
-    save_results(result,R"PC_rp \tau_s^R std f1","Data_Fig2a",PRM)
+    save_results(result,R"PC_rp taus std","Data_Fig2a",PRM)
 end
 
 
@@ -203,7 +209,7 @@ function do_fig3()
     ## basic values of C_f and F_sig
     PRM.PC_f=PRM.GRD_mx*0.03
     PRM.PF_sig=PRM.GRD_mx*0.04
-    PRM.PC_n = 2; #2 fishers!
+    PRM.PC_n = 10; #2 fishers!
     PRM.PS_n = int(round(.05 / (pi *PRM.PF_sig^2 /PRM.GRD_nx^2 ) )) ;
     println("Performance as a function of tau_l and tau_h")
     println("Number of schools: $(PRM.PS_n)")
@@ -220,17 +226,21 @@ function do_fig3()
             PRM.PC_rp = fnc_optimal_PCrp();
             print("$i $j\n")
             
+            taus=fnc_taus1()
+
             println("Without information")
             #Without information
             PRM.PC_lambda=0;
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             init_network(cons,FLAGS)
             FLAGS["measure_frac"]=true
-            FLAGS["measure_fij"]=true
+            FLAGS["stopamount"]=iround(PRM.PS_n*PRM.PF_n*PRM.PC_n*2)
+            FLAGS["stop"]=1
+            #FLAGS["measure_fij"]=true
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            result_noinf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),cons.measure["math"][2],cons.measure["math"][1],mean(cons.measure["Hrate"]),PRM.PC_rp;
+            result_noinf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),taus,mean(cons.measure["f1"]),mean(cons.measure["f2"]),cons.measure["math"][2],cons.measure["math"][1],mean(cons.measure["Hrate"]),PRM.PC_rp;
 
             println("With full information")
             #With information
@@ -238,17 +248,73 @@ function do_fig3()
             school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
             init_network(cons,FLAGS)
             FLAGS["measure_frac"]=true
-            FLAGS["measure_fij"]=true
+            FLAGS["stopamount"]=iround(PRM.PS_n*PRM.PF_n*PRM.PC_n*2)
+            FLAGS["stop"]=1
+            #FLAGS["measure_fij"]=true
             
 #            println(cons.SN)
             make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
 
-            result_inf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),mean(cons.measure["fij"]),cons.measure["math"][2],cons.measure["math"][1],mean(cons.measure["Hrate"]),PRM.PC_rp
+            result_inf[i,j] =PRM.PS_p,PRM.PC_q,mean(cons.measure["Ts"]),taus,mean(cons.measure["f1"]),mean(cons.measure["f2"]),cons.measure["math"][2],cons.measure["math"][1],mean(cons.measure["Hrate"]),PRM.PC_rp
 
         end
     end
-    save_results(result_inf,R"PS_p PC_q \tau_s^R f1 f2 fij bound find H PC_rp","Data_Fig3_inf",PRM)
-    save_results(result_noinf,R"PS_p PC_q \tau_s^R f1 f2 fij bound find H PC_rp","Data_Fig3_noinf",PRM)
+    save_results(result_inf,R"PS_p PC_q taus taustheo f1 f2 bound find H PC_rp","Data_Fig3_inf",PRM)
+    save_results(result_noinf,R"PS_p PC_q taus taustheo f1 f2 bound find H PC_rp","Data_Fig3_noinf",PRM)
+
+end
+
+
+function do_scalingtest()
+    ###### Test dependence on tau_s (i.e. is it okay to just look at rescaled values th/ts and tl/ts)
+    ## basic values of C_f and F_sig
+    PRM.PC_f=PRM.GRD_mx*0.03
+    PRM.PF_sig=PRM.GRD_mx*0.04
+    PRM.PC_n = 5; 
+    PRM.PS_n = int(round(.05 / (pi *PRM.PF_sig^2 /PRM.GRD_nx^2 ) )) ;
+    println("Scaling test")
+    
+    JUMP = logspace(log10(0.001),log10(.1),8);
+    SIG  = logspace(log10(0.1),log10(2),8)*PRM.GRD_mx*0.02;
+    CATCH  = logspace(log10(0.01),log10(1),8);
+    SN= logspace(log10(3),log10(30),8)
+    TAUL_OVER_TAUS=logspace(log10(.03),log10(30),8)
+    result_inf = cell(size(JUMP,1),size(SIG,1));
+    nens=5
+    
+    PRM.PS_p=0.00000001 #infinitely large taul
+    PRM.PF_n=1000000 # infinitely large tauh
+    PRM.PC_lambda=1;
+    PRM.PC_q=1.
+
+    for i = 1:length(TAUL_OVER_TAUS)
+        for j = 1:length(SN)
+            #PRM.PS_p = JUMP[i];
+            #PRM.PC_f = SIG[j];
+            PRM.PS_n= iround( SN[j] )
+#            PRM.PF_sig = SIG[j]
+            taus=fnc_taus1()
+            #tauh_over_taus=TAUH_OVER_TAUS[i]
+            #PRM.PC_q=CATCH[i]
+            #PRM.PF_n=  PRM.PC_q/ (tauh_over_taus * taus) 
+            
+            PRM.PS_p=  1./ (TAUL_OVER_TAUS[i] * taus) 
+            PRM.PC_rp = fnc_optimal_PCrp();
+            print("$i $j\n")
+            
+            school,fish,cons,fishtree,EVENTS,FLAGS,OUT = init_equilibrium();
+            init_network(cons,FLAGS)
+            FLAGS["measure_frac"]=true
+            
+            FLAGS["stopamount"]= iround(PRM.PS_n*50)
+            FLAGS["stop"]=1
+#            println(cons.SN)
+            cons.measure,cons.series=make_ensemble(nens,FLAGS);
+            result_inf[i,j] =PRM.PS_p,PRM.PC_q,PRM.PS_n, PRM.PF_sig, taus,mean(cons.measure["Hrate"]),PRM.PC_rp;
+
+        end
+    end
+    save_results(result_inf,R"PS_p PC_q PS_n PF_sig taus H PC_rp","Data_scalingtest",PRM)
 
 end
 
@@ -302,7 +368,7 @@ function do_fig4opt()
     PRM.PC_ncliq = 1;
     PRM.PC_f=PRM.GRD_mx*0.01
     PRM.PF_sig=PRM.GRD_mx*0.04
-    PRM.PS_p = 0.1;
+    PRM.PS_p = 0.005;
     PRM.PC_q = 0.1;
     PRM.PC_rp = fnc_optimal_PCrp();
     
@@ -321,7 +387,7 @@ function do_fig4opt()
             FLAGS["measure_frac"]=true
             FLAGS["stop"]=1
             #make_season(school,fish,cons,fishtree,EVENTS,FLAGS);
-            FLAGS["stopamount"]=PS_n*PF_n*PC_n*10
+            FLAGS["stopamount"]=PS_n*PF_n*PC_n*100
             nens=1
             cons.measure,cons.series=make_ensemble(nens,FLAGS)
             result[i,j] = RP[i], NS[j],taus1, mean(cons.measure["Ts"]), mean(cons.measure["Hrate"]),mean(cons.measure["Hdist"]),mean(cons.measure["f1"]),mean(cons.measure["f2"]),cons.measure["math"][2],cons.measure["math"][1],cons.measure["math"][4];

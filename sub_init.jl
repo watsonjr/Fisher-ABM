@@ -92,11 +92,12 @@ OUT  = Output(fish_fx,cons_xy,school_xy,school_pop,cons_H,cons_mi);
 
 #Flags: Switches that control the behaviour of the simulation
  
- FLAGS=(ASCIIString=>Union(Int,Bool))[
+ FLAGS=(ASCIIString=>Union(Int,Bool,ASCIIString))[
    "benichou"=>true, #  can detect fish only at rest (in search mode)
     "rtree"=>true,  # Use r-tree to find nearest neighbor among fish
     "save"=>false,  # Print out positions of all fishers and fish to make movies
     "spying"=>false,  # unidirectional communciation allowed
+    "random_partition"=>false, #every run, partition fishers into random cliques
     "implicit_fish"=>true,  # instead of modelling discrete fish, schools are disks
     "decision"=>false,  # Elaborate decision process (WIP)
     "renewal"=>false,  # Fish are renewed over time

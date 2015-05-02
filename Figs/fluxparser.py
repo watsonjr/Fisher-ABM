@@ -1,22 +1,29 @@
 from datatools import *
 from plot_benchcore import *
+from random_partition import random_partition
 
-ni,nj=range(1,5),range(1,5)
+ni,nj=range(1,9),range(1,9)
 
-USE_RANDOM=1
+USE_RANDOM=0
+DISCRETIZE_SIMU=0 #Discrete jumps
+
+RANDOM_PARTITION=1 #Parition fishers in random cliques
+nens= 50 #number of ensembles
 
 filename="Data_anaflux"
 set_constants(filename)
 data=load_data(filename) 
 
-keynames=("s","b","no","o * no","tauh" ,"taul")
+keynames=("f","s","b","no","o * no","tauh" ,"taul")
 
 evtdic={e:{} for  e in ("found_school","left_school","lost_school", "bound")}
 
 constants={}
 states={} #States throughout the simulation
 series={} #Time series of te states
+distdic={} #Typical distance between fishers
 
+cliqH={} #Typical catch by clique size
 
 
 def runavg(array,window):
@@ -35,14 +42,17 @@ def cumavg(array):
 for i in ni:
     print i
     for j in nj:
-        d=np.load("../Data/dist-{}-{}.npy".format(i,j))
-        s=np.load("../Data/states-{}-{}.npy".format(i,j)) 
+        d=np.load("../Data/dist-{}-{}.npy".format(i,j))#[::5]
+        s=np.load("../Data/states-{}-{}.npy".format(i,j))#[::5] 
+        cliq=np.load("../Data/cliq-{}-{}.npy".format(i,j))#[::5] 
+        cliq[cliq==0]=np.NaN
+        cliqH[(i,j)]=cliq
         
         series[(i,j)]=s
         
         for x in range(s.shape[0]):
             key=tuple(s[x] )
-            key+=(i,j)
+            key+=(d[x,1],i,j)
             states.setdefault(key,0)
             states[key]+=1.
             
@@ -51,14 +61,32 @@ for i in ni:
         constants[(i,j)]={l.split()[0]:eval(l.split()[1])  for l in lines[3:] }
         constants[(i,j)]["taus"]=ts
         constants[(i,j)]["taustheo"]=tstheo 
-                   
+        
+        #scatter(d[:,0],d[:,1]/constants[(i,j)]["GRD_mx2"]*sqrt(2.))
+        distdic[(i,j)]=mhist(d[:,1]/constants[(i,j)]["GRD_mx2"]*sqrt(2.),normed=1,bins=100)
+        xs,ys=distdic[(i,j)]
+        #plot(xs,[exp(-(x-.8)**2/2*40) for x in xs],hold=1)
+        #plot(xs,ys,log='y')
+        #scatter(d[:,0],d[:,1]/constants[(i,j)]["GRD_mx2"]*sqrt(2.))
+        
+        #USELESS TEST (i wanted to relate typical distance d to tausr)
+        def maketausr(sig):
+            const={}
+            const.update(constants[(i,j)])
+            del const['PF_sig']
+            del const['PS_n']
+            return tausr(*get_constants( PF_sig=sig,PS_n=1,**const ))
+        #res= [ 1./maketausr( x*constants[(i,j)]["GRD_mx2"]*sqrt(2.)) for x in xs]
+        #res=array(res)
+        #plot(xs[:-1],res[1:]-res[:-1],log='y')
+                           
         for  e in ("found_school","left_school","lost_school", "bound"):
             localdic={}
             arr=np.load("../Data/{}-{}-{}.npy".format(e,i,j))
 
             for x in range(arr.shape[0]):
                 key=tuple(arr[x])
-                key+=(i,j )
+                key+=(0,i,j )
                 evtdic[e].setdefault(key,0.)
                 evtdic[e][key]+=1./nturns
 
@@ -108,9 +136,8 @@ def binsumbase(dic,col=0,nbins=100):
         binval[xbin]=sum([dic[k] for k in binned[xbin]])
     return bins,binval
 
-stateproba=[binsumbase(states,col) for col in (0,1)]
 
-def binsum(dic, col=0,nbins=100,compare_to=None):
+def binsum(dic, col=0,nbins=100,compare_to=None,stateproba=None):
     bins,binned=binner(dic,col,nbins)
     binval=np.zeros(len(bins))
     occur=np.zeros(len(bins))
@@ -134,7 +161,7 @@ def binsum(dic, col=0,nbins=100,compare_to=None):
 
 
 
-def bayes(dic, col=0, nbins=20):
+def bayes(dic, col=0, nbins=20,stateproba=None):
     #Let x be one bin-value
     #P(Event|x)=P(x|Event)*P(Event)/P(x)
     #P(x|Event)= n_keys(x)/n_keys_tot
@@ -158,43 +185,69 @@ def bayes(dic, col=0, nbins=20):
 
     return np.array(bins), np.array(result)
 
+#================================================================================
+#================================================================================
+#================================================================================
+#============================== ANALYTICAL DEFS =================================
+#================================================================================
+#================================================================================
+#================================================================================
 
 def found(key):
-    N=constants[key[-2:]]["PC_n"]
-    s=key[0]
-    b=key[1]
-    f=N-b
-    ts=constants[key[-2:]]["taustheo"]
+    const=constants[tuple(key[-2:])]
+    f,s,b,no,ono,tauh,taul,d,i,j=key
+    ts=max(1.,const["taustheo"]) #* (  const["GRD_mx2"]/sqrt(2.) )/ max(1.,d)  )
     #ts/=(1-float(b)/N)
-    if  USE_RANDOM:
-        ts=(1+np.random.exponential(1.)*max(0.,ts-1.))
-    return (f-s)/ts
+    if USE_RANDOM:
+        ts=max(1.,(1+np.random.exponential(1.)*max(0.,ts-1.)))
+    searchers=f-s
+    return searchers/ts
+    
+    taul,tauh,D=taucalc(const )
+    searchradius=sqrt(D*ts)
+    if d>0:
+        searchers=max(1.,min(searchers,searchers*( d/searchradius )**2  ))
+    return searchers/ts
     
 def bound(key):
     ff=found(key)
-    N=constants[key[-2:]]["PC_n"]
-    s=key[0]
-    b=key[1]
-    f=N-b
-    return (f-s-ff)*min(1.,ff*constants[key[-2:]]["PC_lambda"]**2)
+    f=key[0]
+    s=key[1]
+    b=key[2]
+    return (f-s-ff)*min(1.,ff*constants[tuple(key[-2:])]["PC_lambda"]**2)
     
-def left(key):
-    s,b,no,ono,tauh,taul,i,j=key
-    if tauh >0 and taul >0 and no>0:
-        o=1.#min(1.,ono/no)
-        return s*max(1./taul,o/tauh)
+def left(key,bgo):
+    f,s,b,no,ono,tauh,taul,d,i,j=key
+    if tauh >0 and taul >0:
+        o=min(1.,bgo)
+        return s*min(1.,max(1./taul,o/tauh))
     else:
         return 0
         
 
-def lost(key):
-    s,b,no,ono,tauh,taul,i,j=key
+def get_td(key):
+    f,s,b,no,ono,tauh,taul,d,i,j=key
+    const=constants[(i,j)]
+    N=const["PC_n"]
+    td=d/const["PC_v"]
+    if USE_RANDOM:
+        td=max(1,1+(td-1)*(np.random.exponential(1.)))
+    return td
+
+def lost(key,bgo,d=1.):
+    f,s,b,no,ono,tauh,taul,d,i,j=key
+    const=constants[(i,j)]
     if s>0 and no>0:
-        return left(key)*b/s
+        res=left(key,bgo)*b/s
+        #Time to diffuse away
+        #taul,tauh,D=taucalc(const )
+        #tdif= d**2/2./ D 
+        #res/=max(1.,tdif)
+        return min(b,res)
     else:
         return 0
-    
 
+    
 def taucalc(const):
     th= const["PF_n"]/const["PC_q"]
     PS_p=const["PS_p"]
@@ -204,124 +257,313 @@ def taucalc(const):
         tl= 10000000000
     D=const["PC_v"]**2/const["PC_rp"]
     return tl, th,D
+
+def discretize(variables):
+    res=[]
+    for v in variables:
+        newv=int(round(v))
+        if np.random.random()<(v%1.0):
+            newv+=1
+        res.append(newv)
+    return res
+    
+def dcalc(bs,D,key,const):
+    #Distance between fishers
+    
+    f,s,b,no,ono,tauh,taul,d,i,j=key
+    if f+b<=1:
+        return 0
+    return const["GRD_mx2"] /sqrt(2.)
+    
+    if 0:
+        #Random variables method
+        nedges=N*(N-1)/2
+        
+        d= hypot(*np.random.uniform(-1.,1.,2)*const["GRD_mx2"]) *(nedges-bs) #+ (d/2.)*(b-bs)
+        #for i in range(int(f-s)):
+        #for i in range(int(b-bs)):
+        return d/nedges
+    
+    #ODE Method
+    diff=max(.01,(f-s)/const["PC_n"]*D/max(1.,d ))
+    
+    contract=max(.01,(b-bs)/const["PC_n"])#*const["PC_v"])
+    
+    dd=np.random.normal(diff/2.,.5)  -np.random.normal(contract,.5)
+    d+=dd
+    if d>const["GRD_mx2"]/sqrt(2.):
+        d=2*const["GRD_mx2"]/sqrt(2.)-d
+    if d<0:
+        d=0
+    return d 
     
 def simu(fsource,length=100000,use_random=USE_RANDOM):
     i,j=fsource
     const=constants[(i,j)]
     t=0
     N=const["PC_n"]
-    f=N
-    s=0
-    b=0
-    no=0 #Number of occupied schools
-    ono=0 #Total number of fishers in a school (<o>*n_o)
-    bs=0 #Bound fishers in a school
-    taul,tauh,D=taucalc(const )
+    Sn=const["PS_n"]
+    ncliq=const["PC_ncliq"]
+    if RANDOM_PARTITION:
+        cliquesizes=random_partition(N)
+        f=np.array(cliquesizes)
+        #print 'cliques:',f
+        ncliq=len(f)
+    else:    
+        f=np.ones(ncliq)*floor(N/ncliq) #Free fishers
+    s=np.zeros(ncliq) #Free fishers in a school
+    b=np.zeros(ncliq) #Bound fishers
+    bs=np.zeros(ncliq) #Bound fishers in a school
+    no=np.zeros(ncliq) #Number of occupied schools
+    ono=np.zeros(ncliq) #Total number of fishers in a school (<o>*n_o)
+    taul,tauh,D= taucalc(const )
     res=[]
-    key=(s,b,no,ono,tauh,taul,i,j)
-    while t<length:
-        t+=1
-        taus=constants[key[-2:]]["taustheo"]
-        Wfs=found(key)
-        Wfb=bound(key)
-        Wbf=lost(key)
-        Wsf=left(key)
-        f+=Wbf+Wsf-Wfs-Wfb
-        s+=Wfs-Wsf
-        b+=Wfb-Wbf
-        no+=Wfs-Wsf
-        #Typical distance between fishers
-        if no>0 and ono>0:
-            d=min(const["GRD_mx2"]/sqrt(2.),sqrt(D/no)*N/(ono/no))
-        else:
-            d=const["GRD_mx2"]/sqrt(2.)
-        td=d/const["PC_v"]
-        if use_random:
-            td=max(1,td*(.5+np.random.exponential(.5)))
-        if b>0:
-            bs+=(b-bs)/td - Wbf*bs/b
-            if bs<0:
-                bs=0
-        else:
-            bs=0
-        ono=s+bs
+    
+    d=np.ones(ncliq)* const["GRD_mx2"]/2.
 
-        if use_random:
-            th,tl=tauh,1+(taul-1)*np.random.exponential(1.) #1+(tauh-1)*np.random.exponential(1.)
-        else:
-            th,tl=tauh,taul
-        key=(s,b,no,ono,th,tl,i,j)
-        res.append(key)
-        if np.isnan(s):
-            break
-    return np.array(res)
+    key=np.array((f,s,b,bs,no, np.ones(ncliq)* tauh, np.ones(ncliq)* taul, np.ones(ncliq)* d, np.ones(ncliq)* i, np.ones(ncliq)* j))
+
+    dd=[]
+
+    events={}
+    def addevent(tup):
+        e,ekey=tup
+        ekey=tuple(ekey)
+        events.setdefault(e,{})
+        events[e].setdefault(ekey,0.)
+        events[e][ekey]+=1.
+
+    tsteps=4
+    deltat=1./tsteps
+
+    step=0
+    bysize=np.zeros( (N,2))
+    
+    while t<length:
+        step+=1
+        t+=deltat
+        #bgo=np.sum(key[1]+key[3])/np.sum(key[4])# BGO Meanfield version
+        for cliq in range(ncliq):
+            #BGO: not completely mean-field version (i.e. sum separately on this clique and others)
+            tmpkey=np.ma.array(key, mask=False)
+            tmpkey.mask[:,cliq]=True
+            if np.sum(tmpkey[4])>0:
+                bgo=np.sum(tmpkey[1]+tmpkey[3])/np.sum(tmpkey[4])
+            else:
+                bgo=0
+            if key[4,cliq]>0:
+                bgo+=(key[1,cliq]+key[3,cliq])/key[4,cliq]
+        
+            f,s,b,bs,no,th,tl,d,i,j=key[:,cliq]
+            taus=constants[tuple(key[:,cliq][-2:])]["taustheo"]
+            Wfs=found(key[:,cliq])
+            Wfb=bound(key[:,cliq])
+            Wbf=lost(key[:,cliq],bgo)
+            Wsf=left(key[:,cliq],bgo)
+
+
+            Wfs*=deltat
+            Wfb*=deltat
+            Wsf*=deltat
+            Wbf*=deltat
+
+            if DISCRETIZE_SIMU:
+                Wfs,Wfb,Wbf,Wsf=discretize([Wfs,Wfb,Wbf,Wsf])
+                Wfs=min(f-s,Wfs)
+                Wfb=min(max(0,f-s-Wfs-1),Wfb)
+                Wbf=min(b,Wbf)
+                Wsf=min(s,Wsf)
+                for x in range(int(Wfs)):
+                    addevent(("simu_found_school",key[:,cliq]))
+                for x in range(int(Wfb)):
+                    addevent(("simu_bound",key[:,cliq]))
+                for x in range(int(Wbf)):
+                    addevent(("simu_lost_school",key[:,cliq]))
+                for x in range(int(Wsf)):
+                    addevent(("simu_left_school",key[:,cliq]))
+            else:
+                Wfs=min(f-s,Wfs)
+                Wfb=min(max(0,f-s-1),Wfb)
+                Wbf=min(b,Wbf)
+                Wsf=min(s,Wsf)
+
+            assert s<=f
+            assert not np.isnan(s)
+            df=Wbf-Wfb#+Wsf-Wfs-Wfb
+            ds=Wfs-Wsf
+            db=Wfb-Wbf
+            #dno=Wfs-Wsf
+            
+            f+=df
+            s+=ds
+            b+=db
+            #no+=dno
+            no=Sn*(1.-exp(-s/Sn))
+            d=dcalc(bs,D,key[:,cliq],const)
+            dd.append(d)
+
+            if DISCRETIZE_SIMU:       
+                no= int(round(no))
+            #Typical distance between fishers
+            td=get_td(key[:,cliq])
+            if b>0 and s>0:
+                dbs=(b-bs)/td - Wsf*bs/s
+                bs+=dbs*deltat
+                if bs<0:
+                    bs=0
+            else:
+                bs=0
+            ono=s+bs
+
+            if use_random:
+                th,tl=tauh,1+(taul-1)*np.random.exponential(1.) #1+(tauh-1)*np.random.exponential(1.)
+            else:
+                th,tl=tauh,taul
+            key[:,cliq]=(f,s,b,bs,no,th,tl,d,i,j)
+            if RANDOM_PARTITION:
+                bysize[cliquesizes[cliq]-1]+= ((float(bs)+s)/cliquesizes[cliq],1)
+
+        
+        if step%tsteps==0:
+            res.append(np.sum(key,axis=1) )
+    if RANDOM_PARTITION:
+        bysize[bysize==0]=np.NaN
+        bysize=bysize[:,0]/bysize[:,1]
+    else:
+        bysize=bysize[:,0]
+        
+        
+            
+    if 0:
+        hist(np.array(dd)/const["GRD_mx2"]*sqrt(2.) ,hold=1,normed=1,log='y',bins=200)    
+        plot(*distdic[(i,j)])
+    return np.array(res),events,bysize
+
+#================================================================================
+#================================================================================
+#================================================================================
+#========================   DO SIMULATION  =============================
+#================================================================================
+#================================================================================
+#================================================================================
+
+
 
 H=np.zeros((len(ni),len(nj),2))
+H_by_size=np.zeros((len(ni),len(nj),max( constants[k]["PC_n"] for k in constants  )) )
 math=np.zeros((len(ni),len(nj),4))
 mathsimu=np.zeros((len(ni),len(nj),4))
+simustates={}
 ix=-1
 for i in ni:
+    print i
     ix+=1
     iy=-1
     for j in nj:
+        const=constants[(i,j)]
         iy+=1
         s=series[(i,j)]
-        simulated=simu((i,j),s.shape[0])
-        Hrate=np.mean(s[:,3])/constants[(i,j)]["PC_n"]*constants[(i,j)]["PC_q"]
-        Hrate_simu=np.mean(simulated[:,3])/constants[(i,j)]["PC_n"]*constants[(i,j)]["PC_q"]
+        simulated,simuevents,bysize=[],[],[]
+        for ens in range(nens):
+            sim,simevt,bsize =simu((i,j),s.shape[0]/nens*3)
+            simulated.append(sim)
+            simuevents.append(simevt)
+            bysize.append(bsize)
+        print '\n'
+        serieslength=min(len(ser) for ser in simulated)
+       # simulated=np.mean([ser[:serieslength] for ser in simulated],0)
+        simulated=np.concatenate(simulated)
+        bysize = np.ma.masked_array(bysize,np.isnan(bysize))
+        bysize=np.mean(bysize,0).filled(np.nan)*const["PC_q"]
+        if RANDOM_PARTITION:
+            print bysize        
+            plot(cliqH[(i,j)],bysize,xs=range(len(bysize)))    
+        H_by_size[ix,iy][:len(bysize)]=bysize
+        Hrate=np.mean(s[:,1]+s[:,3])/const["PC_n"]*const["PC_q"]
+        Hrate_simu=np.mean(simulated[:,1]+simulated[:,3])/const["PC_n"]*const["PC_q"]
         H[ix,iy]=Hrate,Hrate_simu
-        math[ix,iy]=np.mean(s[:,0]),np.mean(s[:,1]),np.mean(s[:,2]),np.mean(s[:,3])
-        mathsimu[ix,iy]=np.mean(simulated[:,0]),np.mean(simulated[:,1]),np.mean(simulated[:,2]),np.mean(simulated[:,3])
+        math[ix,iy]=np.mean(s[:,1]),np.mean(s[:,2]),np.mean(s[:,3]),np.mean(s[:,4])
+        mathsimu[ix,iy]=np.mean(simulated[:,1]),np.mean(simulated[:,2]),np.mean(simulated[:,3]),np.mean(simulated[:,4])
+        
+
+        for x in range(simulated.shape[0]):
+            key=tuple(round(x) for x in simulated[x] )
+            simustates.setdefault(key,0)
+            simustates[key]+=1.        
+            
+        for simevt in simuevents:
+            for e,vals in simevt.iteritems() :
+                evtdic.setdefault(e,{})
+                for key in vals:    
+                    evtdic[e].setdefault(key,0.)
+                    evtdic[e][key]+=vals[key]/s.shape[0]
+
+        
         if 0:
             plt.subplot("211")
-            hist(simulated[:,0],log='y',hold=1)
-            hist(s[:,0],log='y',hold=1)
-            plt.subplot("212")
             hist(simulated[:,1],log='y',hold=1)
-            hist(s[:,1],log='y')
-        window=50#50
+            hist(s[:,1],log='y',hold=1)
+            plt.subplot("212")
+            hist(simulated[:,2],log='y',hold=1)
+            hist(s[:,2],log='y')
+        if 0:
+            plot( runavg(s[:,1],window)/  runavg(s[:,0],window),title='Bound/Finder')
+        window=5#50
 
-        if 1:
+        if 0:
             #RUNAVG
             plt.subplot("221")
-            print np.mean(simulated[:,3]),np.mean(s[:,3])
-            plot( runavg(simulated[:,0],window) ,hold=1)
-            plot( runavg(s[:,0],window),title="s" ,hold=1,alpha=.5)
-            plt.subplot("222")
+            print np.mean(simulated[:,3]),np.mean(s[:,3]), s.shape
             plot( runavg(simulated[:,1],window) ,hold=1)
-            plot( runavg(s[:,1],window),title="b" ,hold=1,alpha=.5)
-            plt.subplot("223")
+            plot( runavg(s[:,1],window),title="s" ,hold=1,alpha=.5)
+            plt.subplot("222")
             plot( runavg(simulated[:,2],window) ,hold=1)
-            plot( runavg(s[:,2],window),title="no" ,hold=1,alpha=.5)
-            plt.subplot("224")
+            plot( runavg(s[:,2],window),title="b" ,hold=1,alpha=.5)
+            plt.subplot("223")
             plot( runavg(simulated[:,3],window) ,hold=1)
-            plot( runavg(s[:,3],window),title="ono",alpha=.5)
+            plot( runavg(s[:,3],window),title="bs" ,hold=1,alpha=.5)
+            plt.subplot("224")
+            plot( runavg(simulated[:,4],window) ,hold=1)
+            plot( runavg(s[:,4],window),title="no",alpha=.5)
         if 0:
             #CUMAVG
             plt.subplot("221")
-            plot( cumavg(simulated[:,0]) ,hold=1)
-            plot( cumavg(s[:,0]),title="s" ,hold=1,alpha=.5)
-            plt.subplot("222")
             plot( cumavg(simulated[:,1]) ,hold=1)
-            plot( cumavg(s[:,1]),title="b" ,hold=1,alpha=.5)
-            plt.subplot("223")
+            plot( cumavg(s[:,1]),title="s" ,hold=1,alpha=.5)
+            plt.subplot("222")
             plot( cumavg(simulated[:,2]) ,hold=1)
-            plot( cumavg(s[:,2]),title="no" ,hold=1,alpha=.5)
-            plt.subplot("224")
+            plot( cumavg(s[:,2]),title="b" ,hold=1,alpha=.5)
+            plt.subplot("223")
             plot( cumavg(simulated[:,3]) ,hold=1)
-            plot( cumavg(s[:,3]),title="ono",alpha=.5)
+            plot( cumavg(s[:,3]),title="bs" ,hold=1,alpha=.5)
+            plt.subplot("224")
+            plot( cumavg(simulated[:,4]) ,hold=1)
+            plot( cumavg(s[:,4]),title="no",alpha=.5)
 
-        if 0:
-            plot( runavg(s[:,1],window)/  runavg(s[:,0],window),title='Bound/Finder')
 
-        for  e in ("simu_found_school","simu_left_school","simu_lost_school", "simu_bound"):
-            arr=simulated
-            evtdic.setdefault(e,{})
 
-            for x in range(arr.shape[0]):
-                key=tuple(arr[x])
-                evtdic[e].setdefault(key,0.)
-                evtdic[e][key]+=1./nturns
+
+print "Making real stateproba"
+realstateproba=[binsumbase(states,col) for col in (1,2)]
+
+print "Making simulation stateproba"
+simustateproba=[binsumbase(simustates,col) for col in (1,2)]
+
+if 1:
+    plot(* realstateproba[0],hold=1)
+    plot(* simustateproba[0],color='g',title='Histogram: finders')
+
+    plot(* realstateproba[1],hold=1)
+    plot(* simustateproba[1],color='g',title='Histogram: bound')
+
+#================================================================================
+#================================================================================
+#================================================================================
+#=============================   FINAL PLOTS   ==================================
+#================================================================================
+#================================================================================
+#================================================================================
+
 
 if 1:
     #Catch versus theory
@@ -330,7 +572,7 @@ if 1:
     ax.set_zlabel(r"$H$")
 
     xkey=sorted(x_ax)[0]
-    ykey=sorted(y_ax)[0]
+    ykey="PS_n"#sorted(y_ax)[0]
     X=x_ax[xkey]
     Y=y_ax[ykey]
     plt.xlabel(xkey)
@@ -341,106 +583,61 @@ if 1:
     ax.scatter(X.ravel(),Y.ravel(),H[:,:,1].ravel(),color='g')
     ax.plot_wireframe(X,Y,H[:,:,1],color='g')
     plt.show()
-    #Finders
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(X.ravel(),Y.ravel(),math[:,:,0].ravel())
-    ax.scatter(X.ravel(),Y.ravel(),mathsimu[:,:,0].ravel(),color='g')
-    plt.show()
-    #Bound
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(X.ravel(),Y.ravel(),math[:,:,1].ravel())
-    ax.scatter(X.ravel(),Y.ravel(),mathsimu[:,:,1].ravel(),color='g')
-    plt.show()
-    #no
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(X.ravel(),Y.ravel(),math[:,:,2].ravel())
-    ax.scatter(X.ravel(),Y.ravel(),mathsimu[:,:,2].ravel(),color='g')
-    plt.show()
+    for i in range(4):
+        title=('finders','bound','bs','no')
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(X.ravel(),Y.ravel(),math[:,:,i].ravel())
+        ax.scatter(X.ravel(),Y.ravel(),mathsimu[:,:,i].ravel(),color='g')
+        plt.title(title[i])    
+        plt.show()    
+    
+def bayesplot(col=0,simu=False):
+    pairs=[("left_school",left, "Left school"),("lost_school",lost, "Lost school"),("found_school",found, "Found school"),("bound",bound, "Heed call") ]
+    coltitle=("Finders","Bound")
+    if simu:
+        stateproba=simustateproba
+    else:
+        stateproba=realstateproba
+    for k,f,title in pairs:
+        if simu:
+            title="(SIMU) "+title
+            k='simu_'+k
+        bins,vals, theo,compbins,compvals=binsum(evtdic[k],col,compare_to= f,stateproba=stateproba)
+        bins,vals=bayes(evtdic[k],col,stateproba=stateproba)
+        plot(vals/np.mean(vals),theo/np.mean(theo),xs=bins,title=title,xlabel=coltitle[col])
+    
 
-if 0:
-    plot(stateproba[0][0],stateproba[0][1]/sum(stateproba[0][1])*6,hold=1)
-    hist([k[0] for k in evtdic["found_school"]],normed=1,hold=1)
-    hist([k[0] for k in evtdic["left_school"]],normed=1,hold=1)
-    hist([k[0] for k in evtdic["bound"]],normed=1)
-    plot(stateproba[1][0],stateproba[1][1]/sum(stateproba[1][1])*10,hold=1)
-    hist([k[1] for k in evtdic["found_school"]],normed=1,hold=1)
-    hist([k[1] for k in evtdic["left_school"]],normed=1,hold=1)
-    hist([k[1] for k in evtdic["bound"]],normed=1)
+if 1:
+    print "BAYES FOR ABM (FINDERS)"
+    bayesplot(1,0)
+
+if 1:
+    print "BAYES FOR SIMU (FINDERS) -- REQUIRES DISCRETIZE_SIMU"
+    bayesplot(1,1)
+
+if 1:    
+    print "BAYES FOR ABM (BOUND)"
+    bayesplot(2,0)
+
+if 1:
+    print "BAYES FOR SIMU (BOUND) -- REQUIRES DISCRETIZE_SIMU"
+    bayesplot(2,1)
     
-    
 if 0:
-    bins,vals, theo,compbins,compvals=binsum(evtdic["found_school"],0,compare_to= found)
+    print "SCATTER COMP"
+
+    bins,vals, theo,compbins,compvals=binsum(evtdic["found_school"],0,compare_to= found,stateproba=realstateproba)
     plot(vals,theo,xs=bins,title='Found school/finders')
     scatter(compbins,compvals,log='xy')
 
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["bound"],0,compare_to= bound)
+    bins,vals, theo,compbins,compvals=binsum(evtdic["bound"],0,compare_to= bound,stateproba=realstateproba)
     plot(vals,theo,xs=bins,title='Heed call/finders')
     scatter(compbins,compvals,log='xy')
     
-    
-if 0:
-    
-    bins,vals, theo,compbins,compvals=binsum(evtdic["simu_left_school"],0,compare_to= left)
-    bins,vals=bayes(evtdic["simu_left_school"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Left school/finders')
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["simu_lost_school"],0,compare_to= lost)
-    bins,vals=bayes(evtdic["simu_lost_school"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Lost school/finders')
-    
-    bins,vals, theo,compbins,compvals=binsum(evtdic["simu_found_school"],0,compare_to= found)
-    bins,vals=bayes(evtdic["simu_found_school"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Found school/finders')
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["simu_bound"],0,compare_to= bound)
-    bins,vals=bayes(evtdic["simu_bound"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Heed call/finders')
-if 1:
-    
-    bins,vals, theo,compbins,compvals=binsum(evtdic["left_school"],0,compare_to= left)
-    bins,vals=bayes(evtdic["left_school"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Left school/finders')
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["lost_school"],0,compare_to= lost)
-    bins,vals=bayes(evtdic["lost_school"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Lost school/finders')
-    
-    bins,vals, theo,compbins,compvals=binsum(evtdic["found_school"],0,compare_to= found)
-    bins,vals=bayes(evtdic["found_school"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Found school/finders')
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["bound"],0,compare_to= bound)
-    bins,vals=bayes(evtdic["bound"],0)
-    plot(vals,theo,xs=bins,title='Bayes: Heed call/finders')
-    
-
-if 1:    
-    bins,vals, theo,compbins,compvals=binsum(evtdic["left_school"],1,compare_to= left)
-    bins,vals=bayes(evtdic["left_school"],1)
-    plot(vals,theo,xs=bins,title='Bayes: Left school/bound')
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["lost_school"],1,compare_to= lost)
-    bins,vals=bayes(evtdic["lost_school"],1)
-    plot(vals,theo,xs=bins,title='Bayes: Lost school/bound')
-
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["found_school"],1,compare_to= found)
-    bins,vals=bayes(evtdic["found_school"],1)
-    plot(vals,theo,xs=bins,title='Bayes: Found school/bound')
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["bound"],1,compare_to= bound)
-    bins,vals=bayes(evtdic["bound"],1)
-    plot(vals,theo,xs=bins,title='Bayes: Heed call/bound')
-
-if 0:
-
-    bins,vals, theo,compbins,compvals=binsum(evtdic["found_school"],1,compare_to= found)
+    bins,vals, theo,compbins,compvals=binsum(evtdic["found_school"],1,compare_to= found,stateproba=realstateproba)
     scatter(compbins,compvals,log='xy')
 
-    bins,vals, theo,compbins,compvals=binsum(evtdic["bound"],1,compare_to= bound)
+    bins,vals, theo,compbins,compvals=binsum(evtdic["bound"],1,compare_to= bound,stateproba=realstateproba)
     scatter(compbins,compvals,log='xy')
 

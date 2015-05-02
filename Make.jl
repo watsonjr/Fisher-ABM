@@ -23,13 +23,13 @@ include("Math_Experiments.jl");
 
 #### Switches for various experiments below
 
-timingtest=false #timing & profiling
+timingtest=true #timing & profiling
 firstpass=false #Benichou test: time of first passage
 fig2a=false #Fig2a: search time 1 fisher vs C_rp
 fig2b=false #Fig2b: search time 1 fisher vs Cf, Fsigma 
 fig2c=false #Fig2b: search time 1 fisher vs S_p, C_q 
 fig3=false #Fig3: VOI against tau_h/tau_s, tau_l/tau_s
-fig4opt=true  #optimal lambda
+fig4opt=false  #optimal lambda
 fig4opt_cn=false  #optimal lambda
 fig4opt_cliq=false #optimal nb cliques
 fig4opt_comp=false #cliques vs lambda
@@ -41,9 +41,15 @@ worst=false #like fig3 + iteration over lambda to find min(VOI)
 
 spying=false #spying radius
 
+scaling=false
+
 #### Switches for LHF experiments below
+TAC=false
 IFQ=false
 LHFvs=false
+LHFmovie=false
+LHFpop=true
+LHFdepletion=false
 
 #### Switches for Math experiments below
 Math_flux=false
@@ -87,6 +93,10 @@ if fig2c
     do_fig2c()
 end
 
+if scaling
+    do_scalingtest()
+end    
+    
 if fig3
     reinit_parameters()
     do_fig3()
@@ -133,19 +143,39 @@ if spying
     do_spying()
 end
 
+if TAC
+    reinit_parameters()
+    do_TAC()
+end
+
 
 if IFQ
     reinit_parameters()
-    do_IFQ()
+    do_IFQ_cliq()
+    #do_IFQ()
 end
 
     
+if LHFmovie
+    reinit_parameters()
+    do_LHFmovie()
+end
+
+if LHFpop
+    reinit_parameters()
+    do_LHFpop()
+end
 
 if LHFvs
     reinit_parameters()
+    #do_LHFvs2()
     do_LHFvs()
 end
 
+if LHFdepletion
+    reinit_parameters()
+    do_LHFdepletion()
+end
 if Math_flux
     reinit_parameters()
     ana_flux()

@@ -11,10 +11,11 @@ firstpass=0
 firstpass_ns=0
 fig2a=0
 fig2b=0
+scalingtest=1 #Test that no dependence on taus once rescaled
 fig3=0 #Fig3 for tausr
 fig3H=0 #Fig3 for catch rate
 fig3f=0 #Other quantities related to fig3 (analytics)
-fig4opt=1 #optimal lambda
+fig4opt=0 #optimal lambda
 fig4opt_cliq=0 #optimal ncliques
 fig4opt_comp=0 #cliques vs lambda
 rndcliq=0  #random partition of fishers into cliques
@@ -29,20 +30,32 @@ if firstpass:
     filename="Data_firstpass"
     set_constants(filename)
     data=load_data(filename) 
-    TS=data['\\tau_s^R']
+    TS=data['taus']
     xs=data['PC_rp']
     #print(TS)
     plt.xlabel(r'$C_p$')
     plt.ylabel('First passage time')
     plot([tausr(*get_constants(PC_rp=x)) for x in xs],xs=xs,hold=1)
-    scatter(xs,TS)
+    scatter(xs,TS,hold=1)
+    
+    v=constants["PC_v"]
+    a=constants["PC_f"]+constants["PF_sig"]
+    b=(a+constants["GRD_mx"]/sqrt(constants["PS_n"]) )/2.
+    if log(b/a)>.5:
+        tau2=max(1.01,(a/v * sqrt( log(b/a) +1./2.)))
+    else:
+        print("$a $b $(PS_n) $(PF_sig) $(PS_n*pi*PF_sig^2/GRD_mx^2) ")
+        opt= 0.001
+    opt= 1./tau2
+    print constants
+    scatter([opt],[tausr(*get_constants(PC_rp=opt))],color='r')
 
 
 if firstpass_ns:
     filename="Data_firstpass_ns"
     set_constants(filename)
     data=load_data(filename) 
-    TS=data['\\tau_s^R']
+    TS=data['taus']
     dist=data['dist']
     xs=data['PS_n']
     plt.xlabel(r'$S_n$')
@@ -58,16 +71,29 @@ if fig2a:
     filename="Data_Fig2a"
     set_constants(filename)
     data=load_data(filename) 
-    TS=data['\\tau_s^R']
-    F1=data["f1"]
+    TS=data['taus']
+    #F1=data["f1"]
     xs=data['PC_rp']
     plt.scatter(xs,TS)
-    plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs])
+    plt.plot(xs,[tausr(*get_constants(PC_rp=x)) for x in xs],hold=1)
+
+    v=constants["PC_v"]
+    a=constants["PC_f"]+constants["PF_sig"]
+    b=(a+constants["GRD_mx"]/sqrt(constants["PS_n"]) )/2.
+    if log(b/a)>.5:
+        tau2=max(1.01,(a/v * sqrt( log(b/a) -1./2.)))
+    else:
+        print("$a $b $(PS_n) $(PF_sig) $(PS_n*pi*PF_sig^2/GRD_mx^2) ")
+        opt= 0.001
+    opt=1- 1./tau2
+    print constants
+    scatter([opt],[tausr(*get_constants(PC_rp=opt))],color='r')
+
     
-    plt.show()
-    plt.scatter(xs,F1)
-    plt.plot(xs,[f1r(*get_constants(PC_rp=x)) for x in xs])
-    plt.show()
+    #plt.show()
+    #plt.scatter(xs,F1)
+    #plt.plot(xs,[f1r(*get_constants(PC_rp=x)) for x in xs])
+   # plt.show()
 
 if spying:
     #=========== FIGURE 2A ==================
@@ -147,11 +173,13 @@ if fig3:
 
     filename="Data_Fig3_noinf"
     data_noinf=load_data(filename) 
-    TS=data_noinf['\\tau_s^R']
-    TSinf=data_inf['\\tau_s^R']
+    TS=data_noinf['H']
+    TSinf=data_inf['H']
     X=data_inf['PS_p']
     Y=data_inf['PC_q']
 
+    X=1./X
+    Y=constants["PF_n"]/Y
 
     #3dscatter
     fig = plt.figure()
@@ -160,8 +188,6 @@ if fig3:
     plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
     #plt.zlabel("tau_s")
     Z1,Z2=TS[:,:].ravel(),TSinf[:,:].ravel()
-    X=1./X
-    Y=constants["PF_n"]/Y
     taus1=X.copy()
     for i in range(taus1.shape[0]):
         for j in range(taus1.shape[1]):
@@ -174,11 +200,20 @@ if fig3:
     ax.set_zlabel(r"$VOI= \tau_s^R/\tau_s^I-1$")
     plt.show()
     
+    if 0:
+        #TEST OF THEORETICAL VERSION OF TAUS
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(X.ravel(),Y.ravel(),data_noinf["taus"])
+        ax.scatter(X.ravel(),Y.ravel(),data_noinf["taustheo"],c='g')
+        ax.scatter(X.ravel(),Y.ravel(),taus1,c='r')
+        plt.show()
+    
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
-    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
-    ax.set_zlim(bottom=0, top=200)
+    plt.xlabel(r"$\log_{10}(\tau_l/\tau_s^{1}$)")
+    plt.ylabel(r"$\log_{10}(\tau_h/\tau_s^{1})$")
+    ax.set_zlim(bottom=0, top=min(max(Z1.ravel()),max(Z2.ravel()), 200))
     ax.scatter(X.ravel(),Y.ravel(),Z1,c='r')
     ax.scatter(X.ravel(),Y.ravel(),Z2,c='b')
     ax.set_zlabel(r"$\tau_s$")
@@ -192,68 +227,65 @@ if fig3:
             T[i,j]=tausr(*args)
 
     #ax.plot_wireframe(X,Y,T)
-    #plt.show()
+    plt.show()
 
     #Heatmap
-    #Z1=TS
-    #Z2=TSinf
-    #fig = plt.figure()
-    #plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
-    #plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
-    #ax = fig.add_subplot(111)
-    #ax.pcolor(X, Y, Z1-Z2,  vmin=(Z1-Z2).min(), vmax=(Z1-Z2).max())#abs(Z).max())
-    #plt.show()
-    
-    
-if fig3H:
-    #CATCH
-    filename="Data_Fig3_inf"
+    Z1=TS
+    Z2=TSinf
+    fig = plt.figure()
+    plt.xlabel(r"$\log_{10}(\tau_l/\tau_s^{1}$)")
+    plt.ylabel(r"$\log_{10}(\tau_h/\tau_s^{1})$")
+
+    ax = fig.add_subplot(111)
+    Z=Z1/Z2-1.
+    ax.pcolor(X, Y, Z,  vmin=Z.min(), vmax=Z.max())
+    plt.show()
+
+if scalingtest:
+    #=========== FIGURE 3 - SCALING TEST ==================
+
+    filename="Data_scalingtest"
     set_constants(filename)
     data_inf=load_data(filename) 
-    filename="Data_Fig3_noinf"
-    data_noinf=load_data(filename) 
-    Catch=data_noinf["H"]
-    Catchinf=data_inf["H"]
+
+    TS=data_inf['H']
+    #X=data_inf['PS_p']
+    #Y=data_inf['PC_q']
     X=data_inf['PS_p']
-    Y=data_inf['PC_q']
+    Y=data_inf['PF_sig']
+
+
+    #3dscatter
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.xlabel(r"$\log_{10} \tau_l/\tau_s$")
+    plt.ylabel(r"$F_\sigma$")
+    #plt.zlabel("tau_s")
+    Z=TS[:,:].ravel()
+    X=1./X
+    #X=constants["PF_n"]/X
     taus1=X.copy()
     for i in range(taus1.shape[0]):
         for j in range(taus1.shape[1]):
-            args=get_constants(PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j],PC_rp=data_inf['PC_rp'][i,j] )
+            args=get_constants(PF_sig=data_inf['PF_sig'][i,j],PS_n=data_inf['PS_n'][i,j],PS_p=data_inf['PS_p'][i,j],PC_q=data_inf['PC_q'][i,j],PC_rp=data_inf['PC_rp'][i,j] )
             taus1[i,j]=tausr(*args)
+    #X,Y=np.log10(X/taus1),np.log10(Y/taus1)
 
-    X=1./X
-    Y=constants["PF_n"]/Y
-    X,Y=np.log10(X/taus1),np.log10(Y/taus1)
-
-    T1,T2=Catch[:,:].ravel(),Catchinf[:,:].ravel()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}(\tau_l=1./S_p)/\tau_s^{1}$")
-    plt.ylabel(r"$\log_{10}(\tau_h= F_n/C_q)/\tau_s^{1}$")
-    Z=T2/T1-1
-    ax.scatter(X.ravel(),Y.ravel(),Z,c=Z)
-    ax.set_zlim(bottom=min(Z), top=max(Z))
-    ax.set_zlabel(r"$H^I/H^R-1$")
+#    ax.set_zlim(bottom=-1, top=1)
+    
+    ax.scatter(np.log10(X).ravel()-np.log10(data_inf['taus']).ravel(),Y,data_inf['H'])
+    ax.set_zlabel('$\tau_s')
     plt.show()
     
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plt.xlabel(r"$\log_{10}\tau_l=1./S_p$")
-    plt.ylabel(r"$\log_{10}\tau_h= F_n/C_q$")
-    ax.scatter(X.ravel(),Y.ravel(),T1,c='r')
-    ax.scatter(X.ravel(),Y.ravel(),T2,c='b')
-    ax.set_zlabel(r"$H$")
+    plt.xlabel(r"$\log_{10} \tau_l/\tau_s$")
+    plt.ylabel(r"$F_\sigma$")
+    ax.scatter(np.log10(X).ravel()-np.log10(data_inf['taus']).ravel(),np.log10(Y),np.log10(data_inf['H']/data_inf['PC_q']))
+    ax.set_zlabel(r'$H/C_q$')
     plt.show()
     
-    mycmap = plt.cm.get_cmap('seismic')
-    plt.xlabel(r"$\log_{10}\tau_l/\tau_s^{1}$")
-    plt.ylabel(r"$\log_{10}\tau_h/\tau_s^{1}$")
-    Z=Catchinf/Catch-1.
-    plt.pcolor(X, Y, Z,  vmin=Z.min(), vmax=Z.max(),cmap=mycmap)
-    plt.colorbar()
-    plt.show()
-    
+        
 if fig3f:
     #FRACTIONS
     filename="Data_Fig3_inf"
